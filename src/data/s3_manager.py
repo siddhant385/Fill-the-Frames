@@ -20,31 +20,69 @@ class S3Manager:
     def __init__(self, settings: Settings):
         self.settings = settings
         self.s3_client = boto3.client("s3", config=Config(signature_version=UNSIGNED))
-        self.download_dir = settings.data.download_dir
-        os.makedirs(self.download_dir, exist_ok=True)
+        self.bucket_name = settings.data.s3_bucket
+        
+        self.pt_dir = settings.data.download_dir
+        self.raw_dir = os.path.join(self.pt_dir, "raw_nc")
+        
+        os.makedirs(self.pt_dir, exist_ok=True)
+        os.makedirs(self.raw_dir, exist_ok=True)
 
-    def download_chunk(self, prefix: str) -> list[str]:
-        """Downloads a chunk of .nc files from S3 based on a prefix."""
-        logger.info(f"Downloading chunk with prefix: {prefix}")
-        # Implementation of boto3 list_objects and download_file goes here
-        # Return list of downloaded file paths
-        return []
+    def download_chunk(self, prefix: str) -> None:
+        """Downloads a chunk of .nc files, creates .pt triplets, and deletes .nc files."""
+        logger.info(f"Fetching chunk from S3: {prefix}")
+        
+        # 1. Fetch File List from AWS
+        response = self.s3_client.list_objects_v2(Bucket=self.bucket_name, Prefix=prefix)
+        c13_files = [obj['Key'] for obj in response.get('Contents', []) if 'M6C13' in obj['Key'] and obj['Key'].endswith('.nc')]
+        
+        if len(c13_files) < 3:
+            logger.warning(f"Not enough files in prefix {prefix} to form a triplet.")
+            return
 
-    def _convert_nc_to_bt_tensor(self, nc_path: str, pt_path: str) -> None:
+        # Let's take the first 6 files to form a good chunk of triplets
+        c13_files = c13_files[:6]
+        local_nc_paths = []
+
+        # 2. Download Raw .nc files
+        for key in c13_files:
+            filename = key.split('/')[-1]
+            local_path = os.path.join(self.raw_dir, filename)
+            local_nc_paths.append(local_path)
+            
+            if not os.path.exists(local_path):
+                logger.info(f"Downloading {filename}...")
+                self.s3_client.download_file(self.bucket_name, key, local_path)
+
+        # 3. Create Triplets and Convert to .pt
+        for i in range(len(local_nc_paths) - 2):
+            try:
+                t0 = self._process_single_frame(local_nc_paths[i])
+                t1 = self._process_single_frame(local_nc_paths[i+1])
+                t2 = self._process_single_frame(local_nc_paths[i+2])
+                
+                triplet_tensor = torch.stack([t0, t1, t2], dim=0) # Shape: [3, 1, H, W]
+                safe_prefix = prefix.replace("/", "_")
+                pt_filename = os.path.join(self.pt_dir, f'triplet_{safe_prefix}_{i:03d}.pt')
+                
+                torch.save(triplet_tensor, pt_filename)
+            except Exception as e:
+                logger.error(f"Error processing triplet {i}: {e}")
+                continue
+
+        # 4. Immediately delete massive .nc files to save Kaggle storage
+        self.purge_raw_files()
+        logger.info(f"Chunk converted to .pt triplets. Raw .nc files purged.")
+
+    def _process_single_frame(self, nc_path: str) -> torch.Tensor:
         """Converts raw radiance .nc file to normalized Brightness Temperature .pt tensor."""
-        logger.debug(f"Processing physical BT for {nc_path}")
         ds = xr.open_dataset(nc_path)
 
-        # Simplified cropping logic assuming the data is already somewhat manageable
-        # or cropping is handled by specific lat/lon boundaries.
-        # For demonstration, selecting a 512x512 slice
         start_y, start_x = 500, 500
         try:
-            ds_cropped = ds.isel(
-                y=slice(start_y, start_y + 512), x=slice(start_x, start_x + 512)
-            )
+            ds_cropped = ds.isel(y=slice(start_y, start_y + 256), x=slice(start_x, start_x + 256))
         except (ValueError, IndexError):
-            ds_cropped = ds  # Fallback if dimensions are smaller
+            ds_cropped = ds
 
         rad = ds_cropped["Rad"]
         fk1 = ds_cropped["planck_fk1"].values
@@ -60,23 +98,17 @@ class S3Manager:
         bt_norm = (bt - min_bt) / (max_bt - min_bt)
         bt_norm = bt_norm.clip(0, 1)
 
-        # Convert to tensor and save
-        tensor = (
-            torch.from_numpy(bt_norm.values).float().unsqueeze(0)
-        )  # Shape: [1, H, W]
-        torch.save(tensor, pt_path)
+        tensor = torch.from_numpy(bt_norm.values).float().unsqueeze(0)
         ds.close()
+        return tensor
 
     def purge_raw_files(self) -> None:
-        """Deletes massive .nc files to save disk space."""
-        files = glob.glob(os.path.join(self.download_dir, "*.nc"))
-        for f in files:
+        """Deletes massive .nc files."""
+        for f in glob.glob(os.path.join(self.raw_dir, "*.nc")):
             os.remove(f)
-        logger.info(f"Purged {len(files)} raw .nc files.")
-
+            
     def purge_chunk(self) -> None:
-        """Deletes .pt files after training chunk is complete."""
-        files = glob.glob(os.path.join(self.download_dir, "*.pt"))
-        for f in files:
+        """Deletes processed .pt files AFTER the trainer is done with them."""
+        for f in glob.glob(os.path.join(self.pt_dir, "*.pt")):
             os.remove(f)
-        logger.info(f"Purged {len(files)} processed .pt files.")
+        logger.info("Purged trained .pt chunk from disk.")
