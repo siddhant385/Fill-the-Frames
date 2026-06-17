@@ -17,11 +17,14 @@ def main():
     model = IFNet()
     trainer = Trainer(settings, model, device)
     
-    # Train-and-Purge Chunking Loop (Mock Example)
-    chunks = ["chunk1_prefix", "chunk2_prefix"]
-    
     # Corrected Train-and-Purge Chunking Loop
-    chunks = ["chunk1_prefix", "chunk2_prefix"]
+    # main.py ke andar ye replace kar de:
+    chunks = [
+        "ABI-L1b-RadC/2022/268/12/",  # Day 268, Hour 12
+        "ABI-L1b-RadC/2022/268/13/",  # Day 268, Hour 13
+        "ABI-L1b-RadC/2022/268/14/",  # Day 268, Hour 14
+        "ABI-L1b-RadC/2022/268/15/"   # Day 268, Hour 15
+    ]
     
     for chunk_idx, chunk in enumerate(chunks):
         logger.info(f"=== Fetching and Processing Chunk {chunk_idx + 1}/{len(chunks)}: {chunk} ===")
