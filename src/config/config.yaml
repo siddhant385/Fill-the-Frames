@@ -1,0 +1,10 @@
+training:
+  epochs: 100
+  batch_size: 4
+  learning_rate: 0.0001
+  checkpoints_dir: "/kaggle/working/checkpoints"
+data:
+  s3_bucket: "noaa-goes16"
+  download_dir: "/kaggle/working/goes_data"
+  chunk_size_days: 7
+
