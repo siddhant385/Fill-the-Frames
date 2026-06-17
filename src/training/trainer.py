@@ -50,9 +50,17 @@ class Trainer:
             flow_list, mask, merged, flow_tea, merged_tea, loss_distill = self.model(
                 torch.cat((imgs, gt), 1), scale=[4, 2, 1]
             )
-            loss_student = sum(self.criterion(m, gt) for m in merged)
             
-            loss_teacher = self.criterion(merged_tea, gt) if merged_tea is not None else 0
+            # 🚨 FIX: Handle the tuple return from the new CompositeLoss
+            loss_student = 0
+            for m in merged:
+                l_total, _ = self.criterion(m, gt)
+                loss_student += l_total
+            
+            if merged_tea is not None:
+                loss_teacher, _ = self.criterion(merged_tea, gt)
+            else:
+                loss_teacher = 0
             
             loss = loss_student + loss_teacher + (loss_distill * 0.01)
             

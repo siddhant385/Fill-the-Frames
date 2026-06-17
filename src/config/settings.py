@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import List
 import yaml
 
 @dataclass
@@ -13,7 +12,9 @@ class TrainingConfig:
 class DataConfig:
     s3_bucket: str
     download_dir: str
-    target_days: List[str]
+    year: str
+    start_day: int
+    end_day: int
     frame_step: int
     crop_size: int
 
