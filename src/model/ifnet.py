@@ -82,10 +82,10 @@ class IFNet(nn.Module):
     def __init__(self):
         super(IFNet, self).__init__()
         # 1-channel Grayscale (TIR) ke hisaab se updated channels
-        self.block0 = IFBlock(9, c=240)
-        self.block1 = IFBlock(9 + 4, c=150)
-        self.block2 = IFBlock(9 + 4, c=90)
-        self.block_tea = IFBlock(6 + 4, c=90)
+        self.block0 = IFBlock(2, c=240)   # 1+1 = 2 channels (No flow here)
+        self.block1 = IFBlock(9, c=150)   # 5 + 4(flow) = 9 channels
+        self.block2 = IFBlock(9, c=90)    # 5 + 4(flow) = 9 channels
+        self.block_tea = IFBlock(10, c=90) # 6 + 4(flow) = 10 channels
         self.contextnet = Contextnet()
         self.unet = Unet()
 
