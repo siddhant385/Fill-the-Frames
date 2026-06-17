@@ -39,7 +39,7 @@ def main():
             trainer.train_chunk(settings.data.download_dir, epoch)
             
             # Save checkpoint
-            trainer.save_checkpoint(f"chunk_{chunk_idx}_epoch_{epoch}_latest.pth")
+            trainer.save_checkpoint("latest_model.pth")
             
         # 3. Purge local data to save Kaggle 30GB disk space BEFORE moving to next chunk
         logger.info(f"Purging {chunk} data from disk...")
