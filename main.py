@@ -1,3 +1,4 @@
+import os
 import logging
 import torch
 from src.config.settings import load_settings
@@ -15,10 +16,23 @@ def main():
     
     s3_manager = S3Manager(settings)
     model = IFNet()
+    
+    # 🚨 Load previous checkpoint if it exists
+    checkpoint_path = settings.training.load_model_path
+    
+    if os.path.exists(checkpoint_path):
+        model.load_state_dict(torch.load(checkpoint_path, map_location=device))
+        logger.info(f"✅ Loaded EXISTING model from Kaggle Input. Resuming training!")
+    else:
+        logger.warning(f"⚠️ Checkpoint not found at {checkpoint_path}. Starting from scratch.")
     trainer = Trainer(settings, model, device)
     
-    # 🤖 Auto-generating chunks from YAML config (Day-level chunking)
-    chunks = [f"ABI-L1b-RadC/2022/{day}/" for day in settings.data.target_days]
+    # 🤖 100% Config-Driven Chunk Generation
+    year = settings.data.year
+    start_day = settings.data.start_day
+    end_day = settings.data.end_day
+    
+    chunks = [f"ABI-L1b-RadC/{year}/{day:03d}/" for day in range(start_day, end_day + 1)]
     
     for chunk_idx, chunk in enumerate(chunks):
         logger.info(f"=== Fetching and Processing Chunk {chunk_idx + 1}/{len(chunks)}: {chunk} ===")
@@ -32,7 +46,7 @@ def main():
             
         s3_manager.purge_chunk()
             
-    logger.info("🔥 1-Week Hardcore Training Complete! Model is ready for phase 2 testing.")
+    logger.info("🔥 Config-Driven Multi-Month Training Complete!")
 
 if __name__ == "__main__":
     main()

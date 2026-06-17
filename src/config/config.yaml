@@ -4,10 +4,10 @@ training:
   learning_rate: 0.0001
   checkpoints_dir: "/kaggle/working/checkpoints"
 data:
-  s3_bucket: "noaa-goes16"  # Future me isko "noaa-goes19" kar dena
+  s3_bucket: "noaa-goes16"
   download_dir: "/kaggle/working/goes_data"
-  year: "2024"              # Year parameter
-  start_day: 245            # Sept 1, 2024 (Julian Day)
-  end_day: 274              # Sept 30, 2024 (Julian Day)
+  year: 2024
+  start_day: 264   # Sept 20, 2024
+  end_day: 294     # Oct 20, 2024
   frame_step: 3
-  crop_size: 512            # Resolution upgrade!
+  crop_size: 512
