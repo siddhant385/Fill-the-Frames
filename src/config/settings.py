@@ -1,7 +1,6 @@
 from dataclasses import dataclass
-
+from typing import List
 import yaml
-
 
 @dataclass
 class TrainingConfig:
@@ -14,7 +13,9 @@ class TrainingConfig:
 class DataConfig:
     s3_bucket: str
     download_dir: str
-    chunk_size_days: int
+    target_days: List[str]
+    frame_step: int
+    crop_size: int
 
 @dataclass
 class Settings:
@@ -22,14 +23,6 @@ class Settings:
     data: DataConfig
 
 def load_settings(config_path: str = "src/config/config.yaml") -> Settings:
-    """Loads YAML configuration into a Settings object.
-    
-    Args:
-        config_path (str): Path to the configuration YAML file.
-        
-    Returns:
-        Settings: A dataclass object containing configuration parameters.
-    """
     with open(config_path, 'r') as file:
         raw_config = yaml.safe_load(file)
         
@@ -37,4 +30,3 @@ def load_settings(config_path: str = "src/config/config.yaml") -> Settings:
         training=TrainingConfig(**raw_config.get("training", {})),
         data=DataConfig(**raw_config.get("data", {}))
     )
-

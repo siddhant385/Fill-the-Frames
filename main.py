@@ -11,41 +11,28 @@ def main():
     settings = load_settings()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    logger.info("Starting Satellite Interpolation Pipeline...")
+    logger.info("Starting Autonomous Satellite Interpolation Pipeline...")
     
     s3_manager = S3Manager(settings)
     model = IFNet()
     trainer = Trainer(settings, model, device)
     
-    # Corrected Train-and-Purge Chunking Loop
-    # main.py ke andar ye replace kar de:
-    chunks = [
-        "ABI-L1b-RadC/2022/268/12/",  # Day 268, Hour 12
-        "ABI-L1b-RadC/2022/268/13/",  # Day 268, Hour 13
-        "ABI-L1b-RadC/2022/268/14/",  # Day 268, Hour 14
-        "ABI-L1b-RadC/2022/268/15/"   # Day 268, Hour 15
-    ]
+    # 🤖 Auto-generating chunks from YAML config (Day-level chunking)
+    chunks = [f"ABI-L1b-RadC/2022/{day}/" for day in settings.data.target_days]
     
     for chunk_idx, chunk in enumerate(chunks):
         logger.info(f"=== Fetching and Processing Chunk {chunk_idx + 1}/{len(chunks)}: {chunk} ===")
         
-        # 1. Download and Process ONE chunk fully
         s3_manager.download_chunk(chunk)
         
-        # 2. Train on this specific chunk for all epochs
         for epoch in range(1, settings.training.epochs + 1):
             logger.info(f"--- Chunk {chunk_idx + 1} | Starting Epoch {epoch}/{settings.training.epochs} ---")
-            
             trainer.train_chunk(settings.data.download_dir, epoch)
-            
-            # Save checkpoint
             trainer.save_checkpoint("latest_model.pth")
             
-        # 3. Purge local data to save Kaggle 30GB disk space BEFORE moving to next chunk
-        logger.info(f"Purging {chunk} data from disk...")
         s3_manager.purge_chunk()
             
-    logger.info("Training complete.")
+    logger.info("🔥 1-Week Hardcore Training Complete! Model is ready for phase 2 testing.")
 
 if __name__ == "__main__":
     main()
