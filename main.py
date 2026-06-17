@@ -20,20 +20,27 @@ def main():
     # Train-and-Purge Chunking Loop (Mock Example)
     chunks = ["chunk1_prefix", "chunk2_prefix"]
     
-    for epoch in range(settings.training.epochs):
-        logger.info(f"--- Starting Epoch {epoch} ---")
-        for chunk in chunks:
-            # 1. Download and Process
-            s3_manager.download_chunk(chunk)
+    # Corrected Train-and-Purge Chunking Loop
+    chunks = ["chunk1_prefix", "chunk2_prefix"]
+    
+    for chunk_idx, chunk in enumerate(chunks):
+        logger.info(f"=== Fetching and Processing Chunk {chunk_idx + 1}/{len(chunks)}: {chunk} ===")
+        
+        # 1. Download and Process ONE chunk fully
+        s3_manager.download_chunk(chunk)
+        
+        # 2. Train on this specific chunk for all epochs
+        for epoch in range(1, settings.training.epochs + 1):
+            logger.info(f"--- Chunk {chunk_idx + 1} | Starting Epoch {epoch}/{settings.training.epochs} ---")
             
-            # 2. Train on Chunk
             trainer.train_chunk(settings.data.download_dir, epoch)
             
-            # 3. Checkpoint
-            trainer.save_checkpoint(f"epoch_{epoch}_latest.pth")
+            # Save checkpoint
+            trainer.save_checkpoint(f"chunk_{chunk_idx}_epoch_{epoch}_latest.pth")
             
-            # 4. Purge local data to save space
-            s3_manager.purge_chunk()
+        # 3. Purge local data to save Kaggle 30GB disk space BEFORE moving to next chunk
+        logger.info(f"Purging {chunk} data from disk...")
+        s3_manager.purge_chunk()
             
     logger.info("Training complete.")
 
