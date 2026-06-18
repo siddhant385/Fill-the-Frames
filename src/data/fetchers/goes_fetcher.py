@@ -1,4 +1,5 @@
 import os
+import io
 import logging
 import boto3
 from botocore import UNSIGNED
@@ -18,101 +19,75 @@ class GOESFetcher(SatelliteFetcher):
 
         self.s3_client = boto3.client(
             "s3",
-            config=Config(signature_version=UNSIGNED,max_pool_connections=50)
+            config=Config(signature_version=UNSIGNED, max_pool_connections=50)
         )
 
     def fetch_chunk(self, chunk_prefix: str) -> list[str]:
-        paginator = self.s3_client.get_paginator(
-            "list_objects_v2"
-        )
-
+        paginator = self.s3_client.get_paginator("list_objects_v2")
         c13_files = []
 
-        for page in paginator.paginate(
-            Bucket=self.bucket_name,
-            Prefix=chunk_prefix
-        ):
+        for page in paginator.paginate(Bucket=self.bucket_name, Prefix=chunk_prefix):
             for obj in page.get("Contents", []):
                 key = obj["Key"]
-
-                if (
-                    "M6C13" in key and
-                    key.endswith(".nc")
-                ):
+                if "M6C13" in key and key.endswith(".nc"):
                     c13_files.append(key)
 
         return sorted(c13_files)
-    def fetch_single_file(
-        self,
-        exact_key: str,
-        output_dir: str
-    ) -> str:
-        os.makedirs(output_dir, exist_ok=True)
 
+    def fetch_single_file(self, exact_key: str, output_dir: str) -> str:
+        os.makedirs(output_dir, exist_ok=True)
         filename = os.path.basename(exact_key)
         local_path = os.path.join(output_dir, filename)
 
         if not os.path.exists(local_path):
-            self.s3_client.download_file(
-                self.bucket_name,
-                exact_key,
-                local_path
-            )
+            self.s3_client.download_file(self.bucket_name, exact_key, local_path)
 
         return local_path
 
-    def fetch_frame(
-        self,
-        frame_key: str,
-        output_dir: str
-    ) -> str:
+    def fetch_frame(self, frame_key: str, output_dir: str) -> str:
         os.makedirs(output_dir, exist_ok=True)
-
         filename = os.path.basename(frame_key)
         local_path = os.path.join(output_dir, filename)
 
         if not os.path.exists(local_path):
-            self.s3_client.download_file(
-                self.bucket_name,
-                frame_key,
-                local_path
-            )
+            self.s3_client.download_file(self.bucket_name, frame_key, local_path)
 
         return local_path
 
-    def apply_planck_function(
-        self,
-        raw_data_path: str
-    ) -> torch.Tensor:
-
-        with xr.open_dataset(
-            raw_data_path,
-            mask_and_scale=True
-        ) as ds:
-
+    def apply_planck_function(self, raw_data_path: str) -> torch.Tensor:
+        with xr.open_dataset(raw_data_path, mask_and_scale=True) as ds:
             rad = ds["Rad"]
-
             fk1 = ds["planck_fk1"].values
             fk2 = ds["planck_fk2"].values
             bc1 = ds["planck_bc1"].values
             bc2 = ds["planck_bc2"].values
 
-            # Planck inversion (KEEP THIS)
             rad_safe = rad.where(rad > 0)
+            bt = (fk2 / np.log((fk1 / rad_safe) + 1) - bc1) / bc2
+            clean = np.nan_to_num(bt.values, nan=0.0, posinf=330.0, neginf=180.0)
 
-            bt = (
-                fk2 /
-                np.log((fk1 / rad_safe) + 1)
-                - bc1
-            ) / bc2
+            return torch.from_numpy(clean).float().unsqueeze(0)
 
-            clean = np.nan_to_num(
-                bt.values,
-                nan=0.0,
-                posinf=330.0,
-                neginf=180.0
-            )
+    # 🚀 NAYA SOTA METHOD: In-Memory Streaming
+    def stream_and_apply_planck(self, frame_key: str) -> torch.Tensor:
+        """
+        Downloads the NetCDF file straight into RAM (Memory Buffer) 
+        and applies the Planck inversion without ever touching the Hard Disk.
+        """
+        logger.debug(f"[GOES] Streaming {os.path.basename(frame_key)} directly to RAM...")
+        
+        response = self.s3_client.get_object(Bucket=self.bucket_name, Key=frame_key)
+        file_obj = io.BytesIO(response['Body'].read())
 
-            return torch.from_numpy(
-                clean
-            ).float().unsqueeze(0)
+        with xr.open_dataset(file_obj, engine="h5netcdf", mask_and_scale=True) as ds:
+            rad = ds["Rad"]
+            fk1 = ds["planck_fk1"].values
+            fk2 = ds["planck_fk2"].values
+            bc1 = ds["planck_bc1"].values
+            bc2 = ds["planck_bc2"].values
+
+            rad_safe = rad.where(rad > 0)
+            bt = (fk2 / np.log((fk1 / rad_safe) + 1) - bc1) / bc2
+            clean = np.nan_to_num(bt.values, nan=0.0, posinf=330.0, neginf=180.0)
+
+            return torch.from_numpy(clean).float().unsqueeze(0)
