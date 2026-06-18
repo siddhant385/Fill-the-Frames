@@ -6,7 +6,7 @@ from torch.utils.data import Dataset
 from src.data.transforms import augment_triplet
 
 
-class GOESTripletDataset(Dataset):
+class SatelliteTripletDataset(Dataset):
     """PyTorch Dataset for loading pre-processed Satellite TIR triplets.
 
     Expects data to be stored as `.pt` files containing tensors of shape [3, 1, H, W],
