@@ -4,7 +4,7 @@ import shutil
 import logging
 import torch
 import torch.nn.functional as F
-import concurrent.futures # Ye top par import karna mat bhoolna
+import concurrent.futures
 
 from src.config.settings import Settings
 from src.data.fetchers.goes_fetcher import GOESFetcher
@@ -51,65 +51,66 @@ class DataManager:
             return
 
         frame_step = self.settings.data.frame_step
-
-        # 1. Concurrent Download (Fast Network)
-        logger.info(f"Concurrently pre-fetching {len(frame_keys)} raw files...")
-        def download_worker(key):
-            return self.fetcher.fetch_frame(key, self.raw_dir)
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
-            local_paths = list(executor.map(download_worker, frame_keys))
-
-        # 🚀 THE SOTA FIX: IN-MEMORY CACHE
         tensor_cache = {}
 
-        def get_tensor(path):
-            """Agar tensor cache mein hai toh wahi se do, warna process karo."""
-            if path not in tensor_cache:
-                raw = self.fetcher.apply_planck_function(path)
-                norm = UniversalStandardizer.normalize_bt(
-                    raw, self.settings.data.min_bt, self.settings.data.max_bt
-                )
-                tensor_cache[path] = norm
-            return tensor_cache[path]
+        # 🚀 HELPER: Streams ONLY the missing frames for the current triplet in parallel
+        def fetch_triplet_to_ram(keys):
+            missing = [k for k in keys if k not in tensor_cache]
+            if missing:
+                def _stream(k):
+                    # Convert back to list if it's a tuple (for Himawari 10 segments)
+                    actual_key = list(k) if isinstance(k, tuple) else k
+                    raw = self.fetcher.stream_and_apply_planck(actual_key)
+                    return k, UniversalStandardizer.normalize_bt(
+                        raw, self.settings.data.min_bt, self.settings.data.max_bt
+                    )
+                
+                # Fetch only the missing 1, 2, or 3 frames concurrently into RAM
+                with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+                    for k, tensor in executor.map(_stream, missing):
+                        tensor_cache[k] = tensor
 
-        logger.info("Building Triplets using Fast RAM Cache...")
+        logger.info("🔥 Starting Zero-Disk In-Memory Streaming...")
         
         # 2. Main Processing Loop
-        for i in range(len(local_paths) - 2 * frame_step):
+        for i in range(len(frame_keys) - 2 * frame_step):
             try:
-                t0_path = local_paths[i]
-                t1_path = local_paths[i + frame_step]
-                t2_path = local_paths[i + 2 * frame_step]
+                # 🚨 SOTA FIX: Convert list to tuple so it can be used as a Dictionary Key!
+                k0 = tuple(frame_keys[i]) if isinstance(frame_keys[i], list) else frame_keys[i]
+                k1 = tuple(frame_keys[i + frame_step]) if isinstance(frame_keys[i + frame_step], list) else frame_keys[i + frame_step]
+                k2 = tuple(frame_keys[i + 2 * frame_step]) if isinstance(frame_keys[i + 2 * frame_step], list) else frame_keys[i + 2 * frame_step]
 
-                # Ye ab disk se nahi, seedha RAM se aayega (Lightning Fast!)
-                img0 = get_tensor(t0_path)
-                gt   = get_tensor(t1_path)
-                img1 = get_tensor(t2_path)
+                # 1. Fetch exactly what is needed right now to RAM
+                fetch_triplet_to_ram([k0, k1, k2])
 
-                # Crop aur Save
+                # 2. Extract from RAM cache
+                img0 = tensor_cache[k0]
+                gt   = tensor_cache[k1]
+                img1 = tensor_cache[k2]
+
+                # 3. Fast Crop
                 img0_crop, img1_crop, gt_crop = self._motion_guided_argmax_crop(img0, img1, gt)
 
+                # 4. Save Triplet directly to disk
                 safe_prefix = chunk_prefix.replace("/", "_")
                 pt_filename = os.path.join(self.pt_dir, f"triplet_{safe_prefix}_{i:03d}.pt")
 
                 triplet_tensor = torch.stack([img0_crop, gt_crop, img1_crop], dim=0)
                 torch.save(triplet_tensor, pt_filename)
 
-                # 🚀 SMART MEMORY MANAGEMENT:
-                # Iteration `i` ke baad, `t0_path` wala frame future me kabhi use nahi hoga.
-                # Toh usko RAM se uda do taaki Kaggle crash na kare!
-                if t0_path in tensor_cache:
-                    del tensor_cache[t0_path]
+                # 🚀 SMART MEMORY MANAGEMENT
+                # k0 will not be used in future iterations, so clear it from RAM
+                if k0 in tensor_cache:
+                    del tensor_cache[k0]
 
             except Exception as e:
                 logger.error(f"Triplet failed ({i}): {e}")
                 continue
         
         # 3. Cleanup
-        self.purge_raw_files()
-        tensor_cache.clear() # Failsafe memory clear
-        logger.info("Chunk processing complete. Raw files purged.")
+        tensor_cache.clear()
+        self.purge_raw_files() # Kept for fallback cleanup
+        logger.info("Chunk processing complete. Zero raw files written to disk!")
     
     def _delete_temp(self, path: str):
         if os.path.isfile(path):
@@ -129,12 +130,10 @@ class DataManager:
         if h < crop_size or w < crop_size:
             raise ValueError(f"Image smaller than crop size: {h}x{w}")
 
-        # 1. Generate Motion Map
         motion_map = torch.abs(img1 - img0)
         space_mask = (img0 > 0.0).float()
         motion_map = motion_map * space_mask
         
-        # 🚀 OPTIMIZATION: Downsample by 8x to avoid 1.5 Billion CPU operations
         scale_factor = 8
         small_motion = F.avg_pool2d(
             motion_map.unsqueeze(0), 
@@ -142,12 +141,10 @@ class DataManager:
             stride=scale_factor
         )
         
-        # Calculate scaled-down crop sizes
         small_crop_size = crop_size // scale_factor
         divisor = getattr(self.settings.data, 'crop_stride_divisor', 8)
         small_stride = max(1, small_crop_size // divisor)
 
-        # Fast pooling on the tiny map (Takes milliseconds)
         pooled_motion = F.avg_pool2d(
             small_motion,
             kernel_size=small_crop_size,
@@ -161,15 +158,12 @@ class DataManager:
         y_out = flat_idx // w_out
         x_out = flat_idx % w_out
 
-        # Map the small coordinates back to the High-Res 5424x5424 image
         y = y_out * small_stride * scale_factor
         x = x_out * small_stride * scale_factor
 
-        # Safety bounds
         y = max(0, min(y, h - crop_size))
         x = max(0, min(x, w - crop_size))
 
-        # Direct High-Res Crop
         img0_crop = img0[:, y:y+crop_size, x:x+crop_size]
         img1_crop = img1[:, y:y+crop_size, x:x+crop_size]
         gt_crop = gt[:, y:y+crop_size, x:x+crop_size]
@@ -184,7 +178,6 @@ class DataManager:
     
     def purge_raw_files(self):
         logger.info("Purging raw files...")
-
         for f in glob.glob(os.path.join(self.raw_dir, "*")):
             if os.path.isfile(f):
                 os.remove(f)
