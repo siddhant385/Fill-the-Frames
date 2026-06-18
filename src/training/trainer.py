@@ -114,6 +114,11 @@ class Trainer:
 
             # 🚨 SOTA: Single Backward Pass
             self.scaler.scale(loss).backward()
+            # 🚀 NAYA SOTA FIX: Gradient Clipping (Prevents Loss Explosion)
+            self.scaler.unscale_(self.optimizer)
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+
+            # ... phir step aur update
             self.scaler.step(self.optimizer)
             self.scaler.update()
             
