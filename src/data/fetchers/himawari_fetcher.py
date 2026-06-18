@@ -15,11 +15,14 @@ logger = logging.getLogger(__name__)
 
 class HimawariFetcher(SatelliteFetcher):
     """
-    Himawari-8/9 AHI Full Disk Fetcher.
-    Band 14 (11.2 μm IR)
+    Himawari-8/9 AHI Full Disk Fetcher
+    Band 14 (11.2 µm)
     """
 
-    def __init__(self, bucket_name: str = "noaa-himawari9"):
+    def __init__(
+        self,
+        bucket_name: str = "noaa-himawari9"
+    ):
         super().__init__(bucket_name)
 
         self.s3_client = boto3.client(
@@ -30,14 +33,17 @@ class HimawariFetcher(SatelliteFetcher):
     def fetch_chunk(
         self,
         chunk_prefix: str,
-        output_dir: str
-    ) -> list[str]:
-
-        os.makedirs(output_dir, exist_ok=True)
+        output_dir: str = None
+    ) -> list[list[str]]:
+        """
+        Returns grouped remote frame keys.
+        No download happens here.
+        """
 
         paginator = self.s3_client.get_paginator(
             "list_objects_v2"
         )
+
         all_b14_files = []
 
         for page in paginator.paginate(
@@ -58,14 +64,10 @@ class HimawariFetcher(SatelliteFetcher):
                 f"No B14 files found for {chunk_prefix}"
             )
 
-        # Group files by timestamp
         timestamp_groups = {}
 
         for key in all_b14_files:
             filename = os.path.basename(key)
-
-            # Example:
-            # HS_H09_20260618_1200_B14_FLDK_R20_S0110.DAT.bz2
             parts = filename.split("_")
 
             timestamp = f"{parts[2]}_{parts[3]}"
@@ -75,7 +77,7 @@ class HimawariFetcher(SatelliteFetcher):
 
             timestamp_groups[timestamp].append(key)
 
-        frame_dirs = []
+        frames = []
 
         for timestamp in sorted(timestamp_groups.keys()):
             segment_files = sorted(
@@ -89,31 +91,49 @@ class HimawariFetcher(SatelliteFetcher):
                 )
                 continue
 
-            timestamp_dir = os.path.join(
-                output_dir,
-                timestamp
+            frames.append(segment_files)
+
+        return frames
+
+    def fetch_frame(
+        self,
+        frame_keys: list[str],
+        output_dir: str
+    ) -> str:
+        """
+        Downloads only one timestamp (10 segments).
+        """
+
+        filename = os.path.basename(frame_keys[0])
+        parts = filename.split("_")
+        timestamp = f"{parts[2]}_{parts[3]}"
+
+        timestamp_dir = os.path.join(
+            output_dir,
+            timestamp
+        )
+
+        os.makedirs(
+            timestamp_dir,
+            exist_ok=True
+        )
+
+        for file_key in frame_keys:
+            filename = os.path.basename(file_key)
+
+            local_path = os.path.join(
+                timestamp_dir,
+                filename
             )
 
-            os.makedirs(timestamp_dir, exist_ok=True)
-
-            for file_key in segment_files:
-                filename = os.path.basename(file_key)
-                local_path = os.path.join(
-                    timestamp_dir,
-                    filename
+            if not os.path.exists(local_path):
+                self.s3_client.download_file(
+                    self.bucket_name,
+                    file_key,
+                    local_path
                 )
 
-                if not os.path.exists(local_path):
-                    self.s3_client.download_file(
-                        self.bucket_name,
-                        file_key,
-                        local_path
-                    )
-
-            frame_dirs.append(timestamp_dir)
-
-        return frame_dirs
-    
+        return timestamp_dir
 
     def fetch_single_file(
         self,
@@ -121,18 +141,26 @@ class HimawariFetcher(SatelliteFetcher):
         output_dir: str
     ) -> str:
         """
-        Downloads one full Himawari timestamp
-        (all 10 B14 segments).
+        Debug helper for one exact timestamp.
         """
-        return self.fetch_chunk(
-            exact_prefix,
-            output_dir
+
+        frame_keys = self.fetch_chunk(
+            exact_prefix
         )[0]
-    
+
+        return self.fetch_frame(
+            frame_keys,
+            output_dir
+        )
+
     def apply_planck_function(
         self,
         raw_data_path: str
     ) -> torch.Tensor:
+        """
+        Satpy does calibration internally.
+        Physics unchanged.
+        """
 
         logger.debug(
             f"[Himawari] Loading frame from {raw_data_path}"

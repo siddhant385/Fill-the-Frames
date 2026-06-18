@@ -71,8 +71,21 @@ def test_pipeline_integration(tmp_path):
 
     fake_tensors = [img0, gt, img1]
 
+    manager.fetcher.fetch_chunk = MagicMock(
+        return_value=["a.nc", "b.nc", "c.nc"]
+    )
+
+    manager.fetcher.fetch_frame = MagicMock(
+        side_effect=lambda key, out: key
+    )
+
+    img0 = torch.ones((1, 256, 256)) * 250.0
+    gt = img0.clone()
+    img1 = img0.clone()
+    img1[:, 100:164, 100:164] = 300.0
+
     manager.fetcher.apply_planck_function = MagicMock(
-        side_effect=fake_tensors
+        side_effect=[img0, gt, img1]
     )
 
     manager.process_chunk("dummy_prefix")

@@ -20,16 +20,23 @@ class SatelliteFetcher(ABC):
         self.bucket_name = bucket_name
 
     @abstractmethod
-    def fetch_chunk(self, chunk_prefix: str, output_dir: str) -> list[str]:
+    def fetch_chunk(self, chunk_prefix: str) -> list[str]:
         """
-        Downloads a chunk of raw satellite files from the source to a local directory.
+        Only LIST remote frame keys.
+        No downloading.
+        """
+        pass
 
-        Args:
-            chunk_prefix (str): The path/prefix for the specific time chunk.
-            output_dir (str): Local temporary directory to save the raw files.
 
-        Returns:
-            list[str]: A list of local file paths that were downloaded.
+    @abstractmethod
+    def fetch_frame(
+        self,
+        frame_key: str,
+        output_dir: str
+    ) -> str:
+        """
+        Download one frame only.
+        Returns local path.
         """
         pass
     
@@ -40,6 +47,7 @@ class SatelliteFetcher(ABC):
         Used for debugging/visual inspection.
         """
         pass
+    
 
 
     @abstractmethod

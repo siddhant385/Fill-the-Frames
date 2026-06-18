@@ -41,40 +41,68 @@ class DataManager:
 
     def process_chunk(self, chunk_prefix: str) -> None:
         logger.info(
-            f"Processing chunk {chunk_prefix} "
-            f"using {self.fetcher.__class__.__name__}"
+            f"Processing chunk {chunk_prefix}"
         )
 
-        raw_files = self.fetcher.fetch_chunk(chunk_prefix, self.raw_dir)
+        frame_keys = self.fetcher.fetch_chunk(
+            chunk_prefix
+        )
 
-        if len(raw_files) < 3:
-            logger.warning("Not enough frames for triplets.")
+        if len(frame_keys) < 3:
+            logger.warning(
+                "Not enough frames for triplets."
+            )
             return
 
         frame_step = self.settings.data.frame_step
 
-        for i in range(len(raw_files) - 2 * frame_step):
+        for i in range(
+            len(frame_keys) - 2 * frame_step
+        ):
             try:
-                t0_path = raw_files[i]
-                t1_path = raw_files[i + frame_step]
-                t2_path = raw_files[i + 2 * frame_step]
+                t0_path = self.fetcher.fetch_frame(
+                    frame_keys[i],
+                    self.raw_dir
+                )
 
-                img0_raw = self.fetcher.apply_planck_function(t0_path)
-                gt_raw = self.fetcher.apply_planck_function(t1_path)
-                img1_raw = self.fetcher.apply_planck_function(t2_path)
-                
-                
+                t1_path = self.fetcher.fetch_frame(
+                    frame_keys[i + frame_step],
+                    self.raw_dir
+                )
+
+                t2_path = self.fetcher.fetch_frame(
+                    frame_keys[i + 2 * frame_step],
+                    self.raw_dir
+                )
+
+                img0_raw = self.fetcher.apply_planck_function(
+                    t0_path
+                )
+
+                gt_raw = self.fetcher.apply_planck_function(
+                    t1_path
+                )
+
+                img1_raw = self.fetcher.apply_planck_function(
+                    t2_path
+                )
+
+                self._delete_temp(t0_path)
+                self._delete_temp(t1_path)
+                self._delete_temp(t2_path)
 
                 img0 = UniversalStandardizer.normalize_bt(
                     img0_raw,
                     self.settings.data.min_bt,
                     self.settings.data.max_bt
                 )
+
                 gt = UniversalStandardizer.normalize_bt(
                     gt_raw,
                     self.settings.data.min_bt,
                     self.settings.data.max_bt
                 )
+
                 img1 = UniversalStandardizer.normalize_bt(
                     img1_raw,
                     self.settings.data.min_bt,
@@ -83,11 +111,16 @@ class DataManager:
 
                 img0_crop, img1_crop, gt_crop = (
                     self._motion_guided_argmax_crop(
-                        img0, img1, gt
+                        img0,
+                        img1,
+                        gt
                     )
                 )
 
-                safe_prefix = chunk_prefix.replace("/", "_")
+                safe_prefix = chunk_prefix.replace(
+                    "/", "_"
+                )
+
                 pt_filename = os.path.join(
                     self.pt_dir,
                     f"triplet_{safe_prefix}_{i:03d}.pt"
@@ -98,15 +131,22 @@ class DataManager:
                     dim=0
                 )
 
-                torch.save(triplet_tensor, pt_filename)
+                torch.save(
+                    triplet_tensor,
+                    pt_filename
+                )
 
             except Exception as e:
                 logger.error(
-                    f"Triplet processing failed ({i}): {e}"
+                    f"Triplet failed ({i}): {e}"
                 )
                 continue
-
-        self.purge_raw_files()
+        
+    def _delete_temp(self, path: str):
+        if os.path.isfile(path):
+            os.remove(path)
+        elif os.path.isdir(path):
+            shutil.rmtree(path)
 
     def _motion_guided_argmax_crop(
         self,
