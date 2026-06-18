@@ -2,14 +2,33 @@ training:
   epochs: 100
   batch_size: 4
   learning_rate: 0.0001
+  weight_decay: 0.001
+  num_workers: 4
   checkpoints_dir: "/kaggle/working/checkpoints"
   load_model_path: ""
+
 data:
-  s3_bucket: "noaa-goes19" # Agar GOES-19 chahiye toh yahan update kar lena
-  download_dir: "/kaggle/working/goes_data"
-  prefix_type: "ABI-L1b-RadF"  # 🚨 Naya prefix variable
+  satellite_type: "himawari"
+  s3_bucket: "noaa-himawari9"
+  download_dir: "/kaggle/working/data"
+
+  # Satellite path prefix
+  prefix_type: "AHI-L1b-FLDK"
+
+  # Universal time config
   year: 2024
-  start_day: 264   
-  end_day: 294     
+  month: 9
+  start_unit: 21
+  end_unit: 30
+
+  # Temporal triplet spacing
   frame_step: 3
+
+  # Crop logic
   crop_size: 512
+  crop_stride_divisor: 4
+  static_motion_threshold: 0.005
+
+  # Brightness temperature normalization
+  min_bt: 180.0
+  max_bt: 330.0

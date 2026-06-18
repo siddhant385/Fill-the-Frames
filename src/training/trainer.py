@@ -9,7 +9,7 @@ from torch.utils.tensorboard import SummaryWriter
 from src.config.settings import Settings
 from src.model.ifnet import IFNet
 from src.model.loss import CompositeLoss
-from src.data.dataset import GOESTripletDataset
+from src.data.dataset import SatelliteTripletDataset
 
 logger = logging.getLogger(__name__)
 
@@ -58,9 +58,11 @@ class Trainer:
         self.settings = settings
         self.device = device
         self.model = model.to(device)
-        self.optimizer = AdamW(self.model.parameters(), lr=settings.training.learning_rate, weight_decay=1e-3)
+        self.optimizer = AdamW(self.model.parameters(), lr=settings.training.learning_rate, weight_decay=settings.training.weight_decay)
         self.criterion = CompositeLoss()
-        
+        self.scaler = torch.amp.GradScaler(
+            enabled=self.device.type == "cuda"
+        )
         self.writer = SummaryWriter(log_dir=os.path.join(settings.training.checkpoints_dir, 'logs'))
         os.makedirs(settings.training.checkpoints_dir, exist_ok=True)
         self.global_step = 0
@@ -70,12 +72,19 @@ class Trainer:
         
     def train_chunk(self, data_dir: str, epoch: int) -> None:
         """Trains the model for one epoch on the current data chunk."""
-        dataset = GOESTripletDataset(data_dir=data_dir, augment=True)
+        dataset = SatelliteTripletDataset(data_dir=data_dir, augment=True)
         if len(dataset) == 0:
             logger.warning(f"No data found in {data_dir}. Skipping training chunk.")
             return
             
-        dataloader = DataLoader(dataset, batch_size=self.settings.training.batch_size, shuffle=True, num_workers=2)
+        dataloader = DataLoader(
+            dataset,
+            batch_size=self.settings.training.batch_size,
+            shuffle=True,
+            num_workers=self.settings.training.num_workers,
+            pin_memory=True,
+            persistent_workers=True
+        )
         
         self.model.train()
         for batch_idx, (img0, img1, gt) in enumerate(dataloader):
@@ -102,8 +111,9 @@ class Trainer:
             
             loss = loss_student + loss_teacher + (loss_distill * 0.01)
             
-            loss.backward()
-            self.optimizer.step()
+            self.scaler.scale(loss).backward()
+            self.scaler.step(self.optimizer)
+            self.scaler.update()
             if batch_idx % 10 == 0:
                 logger.info(f"Epoch {epoch} | Batch {batch_idx}/{len(dataloader)} | Loss: {loss.item():.4f}")
                 self.writer.add_scalar('Loss/train', loss.item(), self.global_step)

@@ -19,6 +19,10 @@ def augment_triplet(img0: torch.Tensor, img1: torch.Tensor, gt: torch.Tensor, cr
         Tuple of augmented tensors (img0, img1, gt).
     """
     _, h, w = img0.shape
+    if h < crop_size or w < crop_size:
+        raise ValueError(
+            f"Input smaller than crop size: {h}x{w}"
+        )
     
     # Random Spatial Cropping
     top = random.randint(0, h - crop_size)
