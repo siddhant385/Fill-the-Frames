@@ -1,5 +1,6 @@
 import os
 import logging
+import datetime
 import torch
 
 from src.config.settings import load_settings
@@ -53,43 +54,30 @@ def main():
         device=device
     )
 
-    # Config-driven chunk generation
     sat_type = settings.data.satellite_type.lower()
-    year = settings.data.year
-    start_day = settings.data.start_unit
-    end_day = settings.data.end_unit
     prefix_type = settings.data.prefix_type
+    
+    # Universal Date Setup
+    start_date = datetime.date(settings.data.year, settings.data.month, settings.data.start_day)
+    end_date = datetime.date(settings.data.year, settings.data.month, settings.data.end_day)
+    delta = end_date - start_date
 
     chunks = []
-
-    if sat_type == "goes":
-        # Example:
-        # ABI-L1b-RadC/2026/150/
-        chunks = [
-            f"{prefix_type}/{year}/{day:03d}/"
-            for day in range(
-                start_day,
-                end_day + 1
-            )
-        ]
-
-    elif sat_type == "himawari":
-        # Example:
-        # AHI-L1b-FLDK/2026/06/18/
-        month = settings.data.month
-
-        chunks = [
-            f"{prefix_type}/{year}/{month:02d}/{day:02d}/"
-            for day in range(
-                start_day,
-                end_day + 1
-            )
-        ]
-
-    else:
-        raise ValueError(
-            f"Unsupported satellite type: {sat_type}"
-        )
+    
+    for i in range(delta.days + 1):
+        current_date = start_date + datetime.timedelta(days=i)
+        
+        if sat_type == "goes":
+            # GOES strictly needs Julian Day (e.g., 1 Jan = 001, 1 Feb = 032)
+            julian_day = current_date.timetuple().tm_yday
+            chunks.append(f"{prefix_type}/{current_date.year}/{julian_day:03d}/")
+            
+        elif sat_type == "himawari":
+            # Himawari strictly needs YYYY/MM/DD
+            chunks.append(f"{prefix_type}/{current_date.year}/{current_date.month:02d}/{current_date.day:02d}/")
+            
+        else:
+            raise ValueError(f"Unsupported satellite type: {sat_type}")
 
     # Main chunk loop
     for chunk_idx, chunk in enumerate(chunks):

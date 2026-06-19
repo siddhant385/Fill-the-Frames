@@ -24,8 +24,8 @@ class DataConfig:
     year: int
     month: Optional[int] = None
 
-    start_unit: int = 1
-    end_unit: int = 1
+    start_day: int = 1
+    end_day: int = 1
 
     frame_step: int = 1
 
