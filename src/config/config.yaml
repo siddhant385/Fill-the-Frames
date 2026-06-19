@@ -18,8 +18,8 @@ data:
   # Universal time config
   year: 2024
   month: 9
-  start_unit: 21
-  end_unit: 30
+  start_day: 1
+  end_day: 5
 
   # Temporal triplet spacing
   frame_step: 3

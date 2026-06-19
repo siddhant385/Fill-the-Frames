@@ -21,8 +21,8 @@ def test_trainer_init():
             download_dir="data",
             prefix_type="ABI",
             year=2024,
-            start_unit=1,
-            end_unit=2,
+            start_day=1,
+            end_day=2,
             frame_step=1,
             crop_size=256
         )
@@ -54,8 +54,8 @@ def test_checkpoint_save(tmp_path):
             download_dir="d",
             prefix_type="ABI",
             year=2024,
-            start_unit=1,
-            end_unit=2,
+            start_day=1,
+            end_day=2,
             frame_step=1,
             crop_size=256,
             crop_stride_divisor=4,

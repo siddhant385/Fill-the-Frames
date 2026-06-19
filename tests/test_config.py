@@ -18,8 +18,8 @@ data:
   download_dir: "/tmp/data"
   prefix_type: "ABI-L1b-RadF"
   year: 2024
-  start_unit: 264
-  end_unit: 294
+  start_day: 264
+  end_day: 294
   frame_step: 3
   crop_size: 512
   crop_stride_divisor: 4
