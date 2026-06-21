@@ -1,14 +1,15 @@
 import { PageHeader } from '@/components/common/page-header';
-import { SectionCard } from '@/components/common/section-card';
-import { EmptyState } from '@/components/common/empty-state';
+import { InterpolationDashboard } from '@/features/interpolation/components/interpolation-dashboard';
 
 export default function InterpolationPage() {
   return (
     <div className="space-y-6">
-      <PageHeader title="Interpolation" description="Manage interpolation tasks and settings." />
-      <SectionCard>
-        <EmptyState title="Coming Soon" description="The interpolation module is under development." />
-      </SectionCard>
+      <PageHeader 
+        title="AI Inference Workflow" 
+        description="Configure and execute temporal interpolation to generate intermediate satellite frames." 
+      />
+      <InterpolationDashboard />
     </div>
   );
 }
+
