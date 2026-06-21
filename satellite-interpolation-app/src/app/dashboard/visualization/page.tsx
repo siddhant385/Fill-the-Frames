@@ -1,14 +1,14 @@
 import { PageHeader } from '@/components/common/page-header';
-import { SectionCard } from '@/components/common/section-card';
-import { EmptyState } from '@/components/common/empty-state';
+import { VisualizationDashboard } from '@/features/visualization/components/visualization-dashboard';
 
 export default function VisualizationPage() {
   return (
     <div className="space-y-6">
-      <PageHeader title="Visualization" description="Manage visualization tasks and settings." />
-      <SectionCard>
-        <EmptyState title="Coming Soon" description="The visualization module is under development." />
-      </SectionCard>
+      <PageHeader 
+        title="Scientific Visualization" 
+        description="Inspect and analyze satellite imagery with interactive plotting tools." 
+      />
+      <VisualizationDashboard />
     </div>
   );
 }
