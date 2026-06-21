@@ -1,14 +1,14 @@
 import { PageHeader } from '@/components/common/page-header';
-import { SectionCard } from '@/components/common/section-card';
-import { EmptyState } from '@/components/common/empty-state';
+import { MetadataDashboard } from '@/features/metadata/components/metadata-dashboard';
 
 export default function MetadataPage() {
   return (
     <div className="space-y-6">
-      <PageHeader title="Metadata" description="Manage metadata tasks and settings." />
-      <SectionCard>
-        <EmptyState title="Coming Soon" description="The metadata module is under development." />
-      </SectionCard>
+      <PageHeader 
+        title="Metadata Inspection" 
+        description="Inspect metadata, variables, and dimensions of the current satellite observation." 
+      />
+      <MetadataDashboard />
     </div>
   );
 }
