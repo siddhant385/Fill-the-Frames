@@ -1,11 +1,12 @@
 import os
-import uuid
 import shutil
+import uuid
 from pathlib import Path
-from fastapi import UploadFile, HTTPException
-from typing import Dict, Any
 
-UPLOAD_DIR = Path("storage/uploads")
+from fastapi import HTTPException, UploadFile
+
+from app.core.config import UPLOAD_DIR  # 🚨 Config se import kiya
+from app.schemas.upload import UploadData
 
 ALLOWED_EXTENSIONS = {".nc", ".h5", ".hdf5"}
 ALLOWED_MIME_TYPES = {
@@ -13,44 +14,59 @@ ALLOWED_MIME_TYPES = {
     "application/netcdf",
     "application/x-hdf5",
     "application/x-hdf",
-    "application/octet-stream",
+    "application/octet-stream",  # Octet-stream isliye kyuki frontend kabhi-kabhi binary bhejta hai
 }
 
-MAX_FILE_SIZE = 100 * 1024 * 1024  # 100 MB
+# 1 GB file size limit (Satellite files heavy hoti hain)
+MAX_FILE_SIZE = 1024 * 1024 * 1024
+
 
 class UploadService:
     @staticmethod
-    async def process_upload(file: UploadFile) -> Dict[str, Any]:
+    async def process_upload(file: UploadFile) -> UploadData:
         if not file.filename:
             raise HTTPException(status_code=400, detail="Filename missing")
-            
+
         ext = Path(file.filename).suffix.lower()
         if ext not in ALLOWED_EXTENSIONS:
-            raise HTTPException(status_code=400, detail=f"File extension {ext} not allowed. Supported: .nc, .h5, .hdf5")
-            
+            raise HTTPException(
+                status_code=400,
+                detail=f"File extension {ext} not allowed. Supported: .nc, .h5, .hdf5",
+            )
+
         if file.content_type not in ALLOWED_MIME_TYPES:
-            raise HTTPException(status_code=400, detail=f"Invalid MIME type: {file.content_type}")
-            
-        # File size validation
+            raise HTTPException(
+                status_code=400, detail=f"Invalid MIME type: {file.content_type}"
+            )
+
+        # File size validation (Cursor ko last me le jaakar size check kiya)
         file.file.seek(0, os.SEEK_END)
         file_size = file.file.tell()
         file.file.seek(0)
-        
-        if file_size > MAX_FILE_SIZE:
-            raise HTTPException(status_code=400, detail="File size exceeds maximum allowed limit (100MB)")
 
-        UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-        
+        if file_size > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=400, detail="File size exceeds maximum allowed limit (1GB)"
+            )
+
+        # UUID Generate karo
         file_id = str(uuid.uuid4())
-        safe_filename = f"{file_id}{ext}"
-        file_path = UPLOAD_DIR / safe_filename
+        clean_original_name = file.filename.replace(" ", "_")
         
-        with open(file_path, "wb") as buffer:
+        # 🚨 NAYA LOGIC: UUID naam ka folder banao
+        file_dir = Path(UPLOAD_DIR) / file_id
+        file_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Original naam ki file us folder ke andar daalo
+        file_dest = file_dir / clean_original_name
+        
+        # Heavy file ko safely chunks me copy kiya
+        with open(file_dest, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
-            
-        return {
-            "success": True,
-            "fileId": file_id,
-            "filename": file.filename,
-            "status": "uploaded"
-        }
+        # Seedha Pydantic Model return kiya
+        return UploadData(
+            fileId=file_id,
+            filename=file.filename,
+            status="uploaded",
+            size_bytes=file_size,
+        )

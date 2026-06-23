@@ -1,12 +1,13 @@
-import os
 import logging
-from typing import Dict, Any
+import os
 
-from app.schemas.metadata import MetadataResponse, DimensionInfo, VariableInfo, CoordinateInfo, TemporalInfo, DatasetSummary
-from .netcdf_parser import NetCDFParser
+from app.schemas.metadata import DatasetSummary, MetadataResponse
+
 from .hdf_parser import HDFParser
+from .netcdf_parser import NetCDFParser
 
 logger = logging.getLogger(__name__)
+
 
 class MetadataService:
     @staticmethod
@@ -26,36 +27,36 @@ class MetadataService:
         try:
             parser = MetadataService.get_parser(file_path)
             parser.load_dataset(file_path)
-            
+
             raw_metadata = parser.extract_metadata()
-            
             file_size = os.path.getsize(file_path)
             file_format = os.path.splitext(file_path)[1].lower().strip(".")
-            
+
             summary = DatasetSummary(
                 file_format=file_format,
                 variable_count=raw_metadata["variable_count"],
                 dimension_count=raw_metadata["dimension_count"],
                 coordinate_count=raw_metadata["coordinate_count"],
-                dataset_size=file_size
+                dataset_size=file_size,
             )
-            
+
+            # Yahan ab seedha objects pass ho rahe hain, dictionary unpacking (**) ki zaroorat nahi!
             response = MetadataResponse(
                 file_id=file_id,
                 filename=os.path.basename(file_path),
                 size=file_size,
                 format=file_format,
                 global_attributes=raw_metadata["global_attributes"],
-                dimensions=[DimensionInfo(**d) for d in raw_metadata["dimensions"]],
-                variables=[VariableInfo(**v) for v in raw_metadata["variables"]],
-                coordinates=CoordinateInfo(**raw_metadata["coordinates"]),
-                temporal_info=TemporalInfo(**raw_metadata["temporal_info"]),
-                summary=summary
+                dimensions=raw_metadata["dimensions"],
+                variables=raw_metadata["variables"],
+                coordinates=raw_metadata["coordinates"],
+                temporal_info=raw_metadata["temporal_info"],
+                summary=summary,
             )
-            
+
             logger.info(f"Metadata extracted successfully for {file_id}")
             return response
-            
+
         except Exception as e:
             logger.error(f"Metadata extraction failed for {file_id}: {str(e)}")
             raise e
