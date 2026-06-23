@@ -151,6 +151,65 @@ class HDFParser(BaseDatasetParser):
             "coordinate_count": len(coordinate_names)
         }
 
+    def get_variable_names(self) -> list[str]:
+        if self.file is None:
+            raise ValueError("Dataset not loaded")
+        names = []
+        def visit(name, node):
+            if isinstance(node, h5py.Dataset):
+                names.append(name)
+        self.file.visititems(visit)
+        return names
+
+    def get_time_dimension(self) -> str | None:
+        if self.file is None:
+            raise ValueError("Dataset not loaded")
+        time_names = ["time", "valid_time", "timestamp", "forecast_time"]
+        names = self.get_variable_names()
+        for name in names:
+            if name.split('/')[-1].lower() in time_names:
+                return name
+        return None
+
+    def extract_time_slice(self, variable: str, time_index: int) -> np.ndarray:
+        if self.file is None:
+            raise ValueError("Dataset not loaded")
+        if variable not in self.file:
+            raise ValueError(f"Variable {variable} not found")
+            
+        dataset = self.file[variable]
+        if not isinstance(dataset, h5py.Dataset):
+            raise ValueError(f"{variable} is not a dataset")
+            
+        shape = dataset.shape
+        if len(shape) == 3:
+            return dataset[time_index, :, :]
+        elif len(shape) == 2:
+            if time_index != 0:
+                raise ValueError("time_index must be 0 for 2D variables")
+            return dataset[:, :]
+        else:
+            raise ValueError(f"Variable {variable} has unsupported shape {shape}")
+
+    def extract_timestamp(self, time_index: int) -> str | None:
+        if self.file is None:
+            raise ValueError("Dataset not loaded")
+        time_dim = self.get_time_dimension()
+        if not time_dim or time_dim not in self.file:
+            return None
+            
+        t_var = self.file[time_dim]
+        if time_index < 0 or time_index >= t_var.shape[0]:
+            return None
+            
+        try:
+            val = t_var[time_index]
+            if isinstance(val, bytes):
+                return val.decode('utf-8')
+            return str(val)
+        except Exception:
+            return None
+
     def close(self):
         if self.file is not None:
             self.file.close()
