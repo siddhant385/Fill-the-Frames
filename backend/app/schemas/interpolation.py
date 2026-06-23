@@ -1,11 +1,11 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
-from .visualization import FrameDataResponse
 
 class InterpolationRequest(BaseModel):
-    file_id: str
-    time_ratio: float
-    model: str
+    # AI ko 2 files aur 1 channel chahiye
+    file_id_1: str = Field(..., description="First file ID (e.g., 00_min)")
+    file_id_2: str = Field(..., description="Second file ID (e.g., 20_min)")
+    variable: str = Field(default="C13", description="The satellite channel to interpolate")
 
 class JobResponse(BaseModel):
     job_id: str
@@ -14,4 +14,6 @@ class JobResponse(BaseModel):
 class JobStatusResponse(BaseModel):
     status: str
     progress: float
-    result_frame: Optional[FrameDataResponse] = None
+    # result_frame ki jagah result_file_id aayega
+    result_file_id: Optional[str] = None
+    error: Optional[str] = None

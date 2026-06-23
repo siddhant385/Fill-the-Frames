@@ -1,14 +1,35 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
+
 from app.schemas.common import ApiResponse
-from app.schemas.metrics import MetricsRequest, MetricsResponse
+from app.services.scientific.metrics import MetricsService
 
 router = APIRouter()
 
-@router.post("/compare", response_model=ApiResponse)
-async def compare_frames(request: MetricsRequest):
-    # Placeholder
-    return ApiResponse(
-        success=True,
-        message="Metrics computed",
-        data=None
-    )
+
+@router.get("/compare", response_model=ApiResponse)
+async def compare_images(
+    generated_file_id: str = Query(..., description="ID of the AI Generated Dataset"),
+    truth_file_id: str = Query(
+        ..., description="ID of the Actual Ground Truth Dataset"
+    ),
+    variable: str = Query("C13", description="Variable to compare (e.g., C13)"),
+):
+    """
+    Compare two satellite datasets to calculate PSNR and SSIM quality metrics.
+    Useful for validating AI interpolation accuracy against real data.
+    """
+    try:
+        metrics_data = MetricsService.calculate_accuracy(
+            generated_file_id=generated_file_id,
+            truth_file_id=truth_file_id,
+            variable=variable,
+        )
+        return ApiResponse(
+            success=True,
+            message="Quality metrics calculated successfully.",
+            data=metrics_data,
+        )
+    except Exception as e:
+        return ApiResponse(
+            success=False, message=f"Failed to calculate metrics: {str(e)}", data=None
+        )
