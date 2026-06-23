@@ -105,6 +105,59 @@ class NetCDFParser(BaseDatasetParser):
             "coordinate_count": len(self.ds.coords)
         }
 
+    def get_variable_names(self) -> list[str]:
+        if self.ds is None:
+            raise ValueError("Dataset not loaded")
+        return list(self.ds.variables.keys())
+
+    def get_time_dimension(self) -> str | None:
+        if self.ds is None:
+            raise ValueError("Dataset not loaded")
+        time_names = ["time", "valid_time", "timestamp", "forecast_time"]
+        return next((c for c in self.ds.coords if c.lower() in time_names), None)
+
+    def extract_time_slice(self, variable: str, time_index: int) -> np.ndarray:
+        if self.ds is None:
+            raise ValueError("Dataset not loaded")
+        if variable not in self.ds.variables:
+            raise ValueError(f"Variable {variable} not found")
+        
+        var_data = self.ds[variable]
+        
+        if len(var_data.shape) == 3:
+            time_dim = self.get_time_dimension()
+            if time_dim and time_dim in var_data.dims:
+                return var_data.isel({time_dim: time_index}).values
+            else:
+                return var_data[time_index, :, :].values
+        elif len(var_data.shape) == 2:
+            if time_index != 0:
+                raise ValueError("time_index must be 0 for 2D variables")
+            return var_data.values
+        else:
+            raise ValueError(f"Variable {variable} has unsupported shape {var_data.shape}")
+
+    def extract_timestamp(self, time_index: int) -> str | None:
+        if self.ds is None:
+            raise ValueError("Dataset not loaded")
+        time_dim = self.get_time_dimension()
+        if not time_dim:
+            return None
+        
+        t_var = self.ds[time_dim]
+        if time_index < 0 or time_index >= t_var.size:
+            return None
+        
+        try:
+            val = t_var.values[time_index]
+            if isinstance(val, np.datetime64):
+                # Try to return ISO format string
+                import pandas as pd
+                return pd.Timestamp(val).isoformat() + "Z"
+            return str(val)
+        except Exception:
+            return None
+
     def close(self):
         if self.ds is not None:
             self.ds.close()
