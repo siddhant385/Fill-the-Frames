@@ -12,7 +12,8 @@ import { InterpolationValidationPlaceholder } from './interpolation-validation-p
 import { motion } from 'framer-motion';
 
 export function InterpolationDashboard() {
-  const { jobState, updateConfig, startInterpolation } = useInterpolation();
+  // 🚨 NAYA: setInputFrame hook se nikal liya
+  const { jobState, updateConfig, startInterpolation, setInputFrame } = useInterpolation();
 
   return (
     <motion.div 
@@ -25,6 +26,9 @@ export function InterpolationDashboard() {
       <InterpolationWorkflow 
         jobState={jobState} 
         onGenerate={startInterpolation} 
+        // 🚨 NAYA: Functions pass kar diye workflow ko
+        onSelectT0={(id, filename) => setInputFrame('t0', id, filename)}
+        onSelectT1={(id, filename) => setInputFrame('t1', id, filename)}
       />
       
       <InterpolationConfigPanel 

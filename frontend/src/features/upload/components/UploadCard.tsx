@@ -7,9 +7,16 @@ import { Button } from '@/components/ui/button';
 import { UploadProgress } from './UploadProgress';
 
 export function UploadCard({ fileData }: { fileData: UploadFile }) {
+<<<<<<< HEAD
 	const { removeFile, uploadFileToServer } = useUploadStore();
 	const { file, status, progress, error, fileType } = fileData;
 	const fileSize = (file.size / (1024 * 1024)).toFixed(2);
+=======
+  // 🚨 FIX: simulateUpload ki jagah uploadFileToServer use kar rahe hain
+  const { removeFile, uploadFileToServer } = useUploadStore();
+  const { file, status, progress, error, fileType } = fileData;
+  const fileSize = (file.size / (1024 * 1024)).toFixed(2);
+>>>>>>> 386dd7c (done with interpolation will add some consistency in future)
 
 	const getStatusIcon = () => {
 		switch (status) {
@@ -45,6 +52,7 @@ export function UploadCard({ fileData }: { fileData: UploadFile }) {
 					</div>
 				</div>
 
+<<<<<<< HEAD
 				{status === 'error' ? (
 					<p className="text-xs text-destructive">{error}</p>
 				) : (
@@ -76,3 +84,22 @@ export function UploadCard({ fileData }: { fileData: UploadFile }) {
 		</motion.div>
 	);
 }
+=======
+      <div className="flex items-center gap-2 flex-shrink-0">
+        {status === 'ready' && (
+          // 🚨 FIX: Button click par uploadFileToServer call hoga
+          <Button size="icon" variant="ghost" onClick={() => uploadFileToServer(fileData.id)} className="h-8 w-8 text-primary hover:bg-primary/10 hover:text-primary">
+            <Play className="h-4 w-4" />
+          </Button>
+        )}
+        
+        {status !== 'uploading' && (
+          <Button size="icon" variant="ghost" onClick={() => removeFile(fileData.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
+            <X className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+>>>>>>> 386dd7c (done with interpolation will add some consistency in future)

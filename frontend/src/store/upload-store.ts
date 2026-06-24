@@ -12,8 +12,12 @@ export interface UploadFile {
   error?: string;
   uploadedAt?: Date;
   fileType?: 'netcdf' | 'hdf5';
+  cloudFileId?: string; // 🚨 NAYA: Hugging Face wala asli ID
 }
+<<<<<<< HEAD
 
+=======
+>>>>>>> 386dd7c (done with interpolation will add some consistency in future)
 // 🚨 Yahan humne interface me naye functions add kiye hain
 interface UploadStore {
   files: UploadFile[];
@@ -74,7 +78,13 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
               ...f, 
               progress: 100, 
               status: 'completed', 
+<<<<<<< HEAD
               uploadedAt: new Date() 
+=======
+              uploadedAt: new Date(),
+              // 🚨 NAYA: Backend se aane wala ID save kar rahe hain (handling both camelCase and snake_case)
+              cloudFileId: response.data?.fileId || response.data?.file_id || id
+>>>>>>> 386dd7c (done with interpolation will add some consistency in future)
             } : f
           ),
         }));
