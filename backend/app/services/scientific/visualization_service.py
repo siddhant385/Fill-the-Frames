@@ -24,20 +24,34 @@ class VisualizationService:
     def _get_file_path(file_id: str) -> str:
         """
         Smart fetcher: Checks local serverless cache first, otherwise downloads from HF Bucket.
+        Handles both direct files (uploaded) and folder-based UUIDs (AI generated).
         """
         local_cache_dir = Path(TEMP_STORAGE_DIR) / file_id
         local_cache_dir.mkdir(parents=True, exist_ok=True)
 
-        remote_dir = f"hf://buckets/{HF_BUCKET_ID}/{file_id}"
+        remote_target = f"hf://buckets/{HF_BUCKET_ID}/{file_id}"
+        remote_file_path = None
 
         try:
-            # Check Hugging Face Bucket for files in this UUID folder
-            remote_files = fs.glob(f"{remote_dir}/*")
-            if not remote_files:
-                raise HTTPException(status_code=404, detail="File not found in Hugging Face Bucket")
+            # Case 1: Check if it's a directory (AI generated file style)
+            remote_files = fs.glob(f"{remote_target}/*")
+            
+            if remote_files:
+                # Get the first file inside the folder
+                remote_file_path = remote_files[0]
+                
+            # Case 2: Check if it's a direct file (User uploaded style)
+            elif fs.exists(remote_target):
+                remote_file_path = remote_target
+                
+            # Case 3: Check if the user forgot to add the .nc extension in the API request
+            elif fs.exists(f"{remote_target}.nc"):
+                remote_file_path = f"{remote_target}.nc"
 
-            # Extract filename from remote path
-            remote_file_path = remote_files[0]
+            if not remote_file_path:
+                raise HTTPException(status_code=404, detail=f"File not found in Hugging Face Bucket: {file_id}")
+
+            # Extract filename and setup local download path
             filename = Path(remote_file_path).name
             local_file_path = local_cache_dir / filename
 
@@ -53,7 +67,6 @@ class VisualizationService:
         except Exception as e:
             logger.error(f"Failed to fetch file from bucket: {str(e)}")
             raise HTTPException(status_code=500, detail="Cloud storage retrieval failed")
-
     @staticmethod
     def get_variables(file_id: str) -> VariablesResponse:
         file_path = VisualizationService._get_file_path(file_id)
