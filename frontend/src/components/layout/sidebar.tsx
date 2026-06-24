@@ -6,8 +6,6 @@ import { motion } from 'framer-motion';
 import {
   Layers,
   Film,
-  Settings,
-  Info,
   CheckCircle
 } from 'lucide-react';
 
@@ -15,8 +13,6 @@ const sidebarItems = [
   { name: 'Animation', href: '/dashboard/animation', icon: Film },
   { name: 'Interpolation', href: '/dashboard/interpolation', icon: Layers },
   { name: 'Validation', href: '/dashboard/validation', icon: CheckCircle },
-  { name: 'Settings', href: '/dashboard/settings', icon: Settings },
-  { name: 'About', href: '/dashboard/about', icon: Info },
 ];
 
 export function Sidebar() {

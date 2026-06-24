@@ -9,6 +9,7 @@ export interface InterpolationConfig {
 
 export interface MockFrame {
   id: string;
+  filename?: string;
   timestamp: string;
   resolution: string;
   dimensions: [number, number];

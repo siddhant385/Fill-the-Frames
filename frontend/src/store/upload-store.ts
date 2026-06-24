@@ -77,17 +77,17 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
               status: 'completed', 
               uploadedAt: new Date(),
               // 🚨 NAYA: Backend se aane wala ID save kar rahe hain (handling both camelCase and snake_case)
-              cloudFileId: response.data?.fileId || response.data?.file_id || id
+              cloudFileId: (response.data as { fileId?: string; file_id?: string; })?.fileId || (response.data as { fileId?: string; file_id?: string; })?.file_id || id
             } : f
           ),
         }));
       } else {
         throw new Error(response.message || "Upload failed from server");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       set((state) => ({
         files: state.files.map((f) =>
-          f.id === id ? { ...f, status: 'error', error: error.message } : f
+          f.id === id ? { ...f, status: 'error', error: error instanceof Error ? error.message : 'Upload failed' } : f
         ),
       }));
     }

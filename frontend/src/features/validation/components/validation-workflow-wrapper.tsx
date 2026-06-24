@@ -6,13 +6,49 @@ import { WorkflowStepper, Step } from '@/components/common/workflow-stepper';
 import { UploadDropzone } from '@/features/upload/components/UploadDropzone';
 import { MetadataOverview } from '@/features/metadata/components/metadata-overview';
 import { ValidationViewer } from './validation-viewer';
+import { DifferenceMapViewer } from '@/features/comparison/components/difference-map-viewer';
 import { MetricsDashboard } from '@/features/metrics/components/metrics-dashboard';
-// Note: We use existing UI from other modules as requested.
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DetailedSatelliteMetadata } from '@/features/metadata/types';
+import { DifferenceMapData } from '@/features/comparison/types';
+
+const dummyMetadata = {
+  id: 'dummy',
+  timestamp: new Date().toISOString(),
+  satelliteId: 'INSAT-3D',
+  productType: 'L1B',
+  processingLevel: 'L1',
+  spatialResolution: '1km',
+  bandName: 'TIR1',
+  centralWavelength: '10.8um',
+  projection: 'Mercator',
+  bounds: [0, 0, 0, 0],
+  fileSize: 0,
+  dimensions: [],
+  variables: [],
+  coordinates: []
+} as unknown as DetailedSatelliteMetadata;
+
+const dummyDifferenceMap: DifferenceMapData = {
+  id: 'dummy',
+  type: 'T0.5',
+  timestamp: new Date().toISOString(),
+  band: 'TIR1',
+  resolution: '1km',
+  dimensions: [0, 0],
+  data: [],
+  min: 0,
+  max: 0,
+  meanDifference: 0,
+  maxDifference: 0,
+  minDifference: 0,
+  stdDeviation: 0,
+  similarityScore: 0
+};
 
 export function ValidationWorkflowWrapper() {
-  const { currentStep, nextStep, prevStep, setArtifactId, artifactId } = useValidationStore();
+  const { currentStep, nextStep, prevStep, setArtifactId } = useValidationStore();
   const [tempArtifactId, setTempArtifactId] = useState('');
 
   const handleArtifactLoad = () => {
@@ -64,8 +100,8 @@ export function ValidationWorkflowWrapper() {
       description: 'Review Observation',
       component: (
         <div className="space-y-6">
-          <div className="bg-muted/20 p-6 rounded-lg text-center">
-            <p className="mb-4">Ground Truth Metadata loaded successfully.</p>
+          <MetadataOverview data={dummyMetadata} />
+          <div className="flex justify-center pt-4">
             <Button onClick={nextStep}>Proceed to Visual Inspection</Button>
           </div>
         </div>
@@ -93,9 +129,12 @@ export function ValidationWorkflowWrapper() {
       description: 'Spatial Error Map',
       component: (
         <div className="space-y-6">
-           <div className="p-8 border-2 border-dashed border-border rounded-xl flex items-center justify-center min-h-[400px]">
-              <p className="text-muted-foreground text-lg">Difference Map Module goes here</p>
-           </div>
+           <DifferenceMapViewer 
+             differenceMap={dummyDifferenceMap}
+             sharedLayout={{}}
+             onRelayout={() => {}}
+             isFullscreen={false}
+           />
            <div className="flex justify-center pt-4">
             <Button onClick={nextStep}>Compute Metrics</Button>
           </div>
@@ -110,20 +149,10 @@ export function ValidationWorkflowWrapper() {
         <div className="space-y-6">
            <MetricsDashboard />
            <div className="flex justify-center pt-4">
-            <Button onClick={nextStep}>Finalize Validation</Button>
+            <Button variant="outline" onClick={() => console.log('Validation complete')}>
+              Complete Validation
+            </Button>
           </div>
-        </div>
-      ),
-    },
-    {
-      id: 7,
-      label: 'Export',
-      description: 'Validation Report',
-      component: (
-        <div className="space-y-6 flex flex-col items-center justify-center min-h-[300px]">
-           <h2 className="text-2xl font-bold text-primary">Validation Complete!</h2>
-           <p className="text-muted-foreground">The scientific evaluation pipeline has concluded.</p>
-           <Button size="lg" className="mt-4">Download Validation Report</Button>
         </div>
       ),
     },
@@ -137,7 +166,7 @@ export function ValidationWorkflowWrapper() {
         <Button 
           variant="ghost" 
           onClick={prevStep} 
-          disabled={currentStep === 1 || currentStep === 7}
+          disabled={currentStep === 1 || currentStep === 6}
         >
           Back
         </Button>

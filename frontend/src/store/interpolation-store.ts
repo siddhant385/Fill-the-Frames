@@ -1,39 +1,59 @@
 import { create } from 'zustand';
+import { InterpolationJobState, InterpolationConfig, MockFrame } from '@/features/interpolation/types';
+import { DEFAULT_INTERPOLATION_CONFIG } from '@/features/interpolation/constants';
 
-interface InterpolationState {
+interface InterpolationState extends InterpolationJobState {
   currentStep: number;
-  t0FileId: string | null;
-  t1FileId: string | null;
-  isProcessing: boolean;
-  generatedArtifactId: string | null;
+  
+  // Actions
   setStep: (step: number) => void;
   nextStep: () => void;
   prevStep: () => void;
-  setT0FileId: (id: string | null) => void;
-  setT1FileId: (id: string | null) => void;
-  setIsProcessing: (processing: boolean) => void;
-  setGeneratedArtifactId: (id: string | null) => void;
+  
+  setJobState: (state: Partial<InterpolationJobState>) => void;
+  updateConfig: (config: Partial<InterpolationConfig>) => void;
+  setInputFrame: (key: 't0' | 't1', frame: MockFrame) => void;
   reset: () => void;
 }
 
+const initialState: InterpolationJobState = {
+  status: 'idle',
+  progress: 0,
+  config: DEFAULT_INTERPOLATION_CONFIG,
+  inputFrames: {
+    t0: null,
+    t1: null,
+  },
+  outputFrame: null,
+};
+
 export const useInterpolationStore = create<InterpolationState>((set) => ({
   currentStep: 1,
-  t0FileId: null,
-  t1FileId: null,
-  isProcessing: false,
-  generatedArtifactId: null,
+  ...initialState,
+  
   setStep: (step) => set({ currentStep: step }),
   nextStep: () => set((state) => ({ currentStep: state.currentStep + 1 })),
   prevStep: () => set((state) => ({ currentStep: Math.max(1, state.currentStep - 1) })),
-  setT0FileId: (id) => set({ t0FileId: id }),
-  setT1FileId: (id) => set({ t1FileId: id }),
-  setIsProcessing: (processing) => set({ isProcessing: processing }),
-  setGeneratedArtifactId: (id) => set({ generatedArtifactId: id }),
+  
+  setJobState: (newState) => set((state) => ({ ...state, ...newState })),
+  
+  updateConfig: (newConfig) => set((state) => ({
+    config: { ...state.config, ...newConfig }
+  })),
+  
+  setInputFrame: (key, frame) => set((state) => ({
+    inputFrames: {
+      ...state.inputFrames,
+      [key]: frame
+    }
+  })),
+
   reset: () => set({
     currentStep: 1,
-    t0FileId: null,
-    t1FileId: null,
-    isProcessing: false,
-    generatedArtifactId: null,
+    ...initialState,
+    jobId: undefined,
+    startedAt: undefined,
+    completedAt: undefined,
+    error: undefined,
   }),
 }));

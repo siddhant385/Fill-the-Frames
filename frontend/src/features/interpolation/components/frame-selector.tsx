@@ -4,9 +4,11 @@ import { Clock, File as FileIcon } from 'lucide-react';
 import { useUploadStore } from '@/store/upload-store';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
+import { MockFrame } from '@/features/interpolation/types';
+
 interface FramePreviewCardProps {
   label: string;
-  frame: any; // Temporarily any, jab tak proper type na set ho
+  frame: MockFrame | null; 
   onSelect: (cloudId: string, filename: string) => void;
 }
 
@@ -70,8 +72,8 @@ function FramePreviewCard({ label, frame, onSelect }: FramePreviewCardProps) {
 }
 
 interface FrameSelectorProps {
-  t0: any;
-  t1: any;
+  t0: MockFrame | null;
+  t1: MockFrame | null;
   onSelectT0: (id: string, filename: string) => void;
   onSelectT1: (id: string, filename: string) => void;
 }
