@@ -1,7 +1,10 @@
+import asyncio
+import json
 import uuid
 from typing import Any, Dict
 
 from fastapi import APIRouter, BackgroundTasks, Form, HTTPException
+from fastapi.responses import StreamingResponse
 
 from app.schemas.common import ApiResponse
 from app.schemas.interpolation import (
@@ -77,5 +80,31 @@ async def get_status(job_id: str):
 
 @router.get("/events/{job_id}")
 async def get_events(job_id: str):
-    # Placeholder for SSE (Phase 4)
-    return {"message": "SSE endpoint placeholder. Use /status polling for now."}
+    """
+    SSE Endpoint: Streams real-time job progress to the frontend.
+    """
+
+    async def event_generator():
+        while True:
+            if job_id not in JOB_STORE:
+                yield f"data: {json.dumps({'error': 'Job not found'})}\n\n"
+                break
+
+            job_data = JOB_STORE[job_id]
+            # Payload banake stream karo
+            payload = {
+                "status": job_data["status"],
+                "progress": job_data["progress"],
+                "result_file_id": job_data.get("result_file_id"),
+                "error": job_data.get("error"),
+            }
+            yield f"data: {json.dumps(payload)}\n\n"
+
+            # Agar job complete ya fail ho gayi, toh connection close kar do
+            if job_data["status"] in ["completed", "failed"]:
+                break
+
+            # Har 2 second me update bhejo (server overload bachane ke liye)
+            await asyncio.sleep(2)
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
