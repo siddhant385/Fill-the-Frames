@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { MetadataResponse } from '@/features/metadata/types';
+import { FrameDataResponse } from '@/features/visualization/types';
+import { DifferenceMapData } from '@/features/comparison/types';
 
 interface ValidationState {
   currentStep: number;
@@ -12,6 +14,14 @@ interface ValidationState {
   metadataLoading: boolean;
   metadataError: string | null;
 
+  validationPair: { generatedId: string, groundTruthId: string } | null;
+  alignedGenerated: FrameDataResponse | null;
+  alignedGroundTruth: FrameDataResponse | null;
+  differenceMap: DifferenceMapData | null;
+
+  validationLoading: boolean;
+  validationError: string | null;
+
   setStep: (step: number) => void;
   nextStep: () => void;
   prevStep: () => void;
@@ -20,6 +30,7 @@ interface ValidationState {
   setGroundTruthFilename: (filename: string | null) => void;
   setMetricsComputed: (computed: boolean) => void;
   setMetadataState: (state: Partial<Pick<ValidationState, 'groundTruthMetadata' | 'metadataLoading' | 'metadataError'>>) => void;
+  setValidationState: (state: Partial<Pick<ValidationState, 'validationPair' | 'alignedGenerated' | 'alignedGroundTruth' | 'differenceMap' | 'validationLoading' | 'validationError'>>) => void;
   reset: () => void;
 }
 
@@ -34,6 +45,13 @@ export const useValidationStore = create<ValidationState>((set) => ({
   metadataLoading: false,
   metadataError: null,
 
+  validationPair: null,
+  alignedGenerated: null,
+  alignedGroundTruth: null,
+  differenceMap: null,
+  validationLoading: false,
+  validationError: null,
+
   setStep: (step) => set({ currentStep: step }),
   nextStep: () => set((state) => ({ currentStep: state.currentStep + 1 })),
   prevStep: () => set((state) => ({ currentStep: Math.max(1, state.currentStep - 1) })),
@@ -42,6 +60,7 @@ export const useValidationStore = create<ValidationState>((set) => ({
   setGroundTruthFilename: (filename) => set({ groundTruthFilename: filename }),
   setMetricsComputed: (computed) => set({ metricsComputed: computed }),
   setMetadataState: (newState) => set((state) => ({ ...state, ...newState })),
+  setValidationState: (newState) => set((state) => ({ ...state, ...newState })),
   reset: () => set({
     currentStep: 1,
     artifactId: null,
@@ -51,5 +70,11 @@ export const useValidationStore = create<ValidationState>((set) => ({
     groundTruthMetadata: null,
     metadataLoading: false,
     metadataError: null,
+    validationPair: null,
+    alignedGenerated: null,
+    alignedGroundTruth: null,
+    differenceMap: null,
+    validationLoading: false,
+    validationError: null,
   }),
 }));

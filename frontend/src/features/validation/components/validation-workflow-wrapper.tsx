@@ -11,8 +11,9 @@ import { MetricsDashboard } from '@/features/metrics/components/metrics-dashboar
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DifferenceMapData } from '@/features/comparison/types';
-
 import { useMetadata } from '@/features/metadata/hooks/use-metadata';
+
+import { useValidation } from '@/features/validation/hooks/use-validation';
 import { MetadataSummary } from '@/features/metadata/components/metadata-summary';
 import { MetadataVariableList } from '@/features/metadata/components/metadata-variable-list';
 import { Loader2 } from 'lucide-react';
@@ -39,10 +40,17 @@ export function ValidationWorkflowWrapper() {
   const { currentStep, nextStep, prevStep, setArtifactId, setGroundTruthFileId, setGroundTruthFilename } = store;
   const [tempArtifactId, setTempArtifactId] = useState('');
   const { fetchValidationMetadata } = useMetadata();
+  const { alignFrames } = useValidation();
+
+  React.useEffect(() => {
+    if (store.artifactId && store.currentStep === 1) {
+      store.nextStep();
+    }
+  }, [store.artifactId, store.currentStep, store]);
 
   const handleArtifactLoad = () => {
     setArtifactId(tempArtifactId);
-    nextStep();
+    // nextStep is handled by the useEffect above
   };
 
   const handleGroundTruthUpload = async (fileId: string, filename: string) => {
@@ -78,7 +86,10 @@ export function ValidationWorkflowWrapper() {
         <MetadataSummary data={store.groundTruthMetadata} />
         <MetadataVariableList data={store.groundTruthMetadata} />
         <div className="flex justify-center pt-4">
-          <Button onClick={nextStep}>Proceed to Visual Inspection</Button>
+          <Button onClick={async () => {
+            nextStep();
+            await alignFrames();
+          }}>Proceed to Visual Inspection</Button>
         </div>
       </div>
     );
@@ -129,12 +140,24 @@ export function ValidationWorkflowWrapper() {
       description: 'AI vs Ground Truth',
       component: (
         <div className="space-y-6">
-          <ValidationViewer 
-            generatedImageUrl="/mock-images/generated.png" 
-            groundTruthImageUrl="/mock-images/ground_truth.png" 
-          />
+          {store.validationLoading ? (
+            <div className="flex flex-col items-center justify-center p-12 text-muted-foreground h-[500px] border rounded-lg">
+              <Loader2 className="w-8 h-8 animate-spin mb-4" />
+              <p>Aligning frames and validating coordinates...</p>
+            </div>
+          ) : store.validationError ? (
+            <div className="flex flex-col items-center justify-center p-12 text-destructive h-[500px] border rounded-lg border-destructive/50 bg-destructive/5">
+              <p>Validation Failed: {store.validationError}</p>
+              <Button variant="outline" className="mt-4" onClick={alignFrames}>Retry Alignment</Button>
+            </div>
+          ) : (
+            <ValidationViewer 
+              generatedData={store.alignedGenerated} 
+              groundTruthData={store.alignedGroundTruth} 
+            />
+          )}
           <div className="flex justify-center pt-4">
-            <Button onClick={nextStep}>Analyze Difference Map</Button>
+            <Button onClick={nextStep} disabled={store.validationLoading || !store.validationPair}>Analyze Difference Map</Button>
           </div>
         </div>
       ),
@@ -146,7 +169,7 @@ export function ValidationWorkflowWrapper() {
       component: (
         <div className="space-y-6">
            <DifferenceMapViewer 
-             differenceMap={dummyDifferenceMap}
+             differenceMap={store.differenceMap || dummyDifferenceMap}
              sharedLayout={{}}
              onRelayout={() => {}}
              isFullscreen={false}

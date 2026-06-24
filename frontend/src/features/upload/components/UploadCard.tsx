@@ -9,8 +9,8 @@ import { UploadProgress } from './UploadProgress';
 export function UploadCard({ fileData }: { fileData: UploadFile }) {
   // 🚨 FIX: simulateUpload ki jagah uploadFileToServer use kar rahe hain
   // const { removeFile, uploadFileToServer } = useUploadStore();
-  const removeFile = (id: string) => {};
-  const uploadFileToServer = (id: string) => {};
+  const removeFile = (_id: string) => {};
+  const uploadFileToServer = (_id: string) => {};
   const { file, status, progress, error, fileType } = fileData;
   const fileSize = (file.size / (1024 * 1024)).toFixed(2);
 
