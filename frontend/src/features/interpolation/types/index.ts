@@ -4,6 +4,7 @@ export interface InterpolationConfig {
   timeRatio: 0.25 | 0.50 | 0.75;
   model: string;
   mode: string;
+  variable?: string;
 }
 
 export interface MockFrame {

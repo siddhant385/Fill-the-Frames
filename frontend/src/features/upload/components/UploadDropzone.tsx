@@ -6,14 +6,17 @@ import { UploadEmptyState } from './UploadEmptyState';
 import { useUploadStore } from '@/store/upload-store';
 import { cn } from '@/lib/utils';
 
-export function UploadDropzone() {
+export function UploadDropzone({ onUploadComplete }: { onUploadComplete?: () => void }) {
   const addFiles = useUploadStore((state) => state.addFiles);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
       addFiles(acceptedFiles);
+      if (onUploadComplete) {
+        onUploadComplete();
+      }
     }
-  }, [addFiles]);
+  }, [addFiles, onUploadComplete]);
 
   const { getRootProps, getInputProps, isDragActive, isDragReject } = useDropzone({
     onDrop,
