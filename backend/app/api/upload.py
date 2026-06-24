@@ -5,7 +5,6 @@ from typing import List
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from huggingface_hub import HfFileSystem
 
-# 🚨 UPLOAD_DIR removed, using HF configs
 from app.core.config import HF_BUCKET_ID, HF_TOKEN
 from app.schemas.common import ApiResponse
 from app.services.upload_service import UploadService
@@ -15,8 +14,9 @@ router = APIRouter()
 # Initialize Hugging Face File System
 fs = HfFileSystem(token=HF_TOKEN)
 
-
+# 🚨 FIX: Double routing add ki gayi hai trailing slash error se bachne ke liye
 @router.post("", response_model=ApiResponse)
+@router.post("/", response_model=ApiResponse)
 async def upload_file(file: UploadFile = File(...)):
     """
     Upload a single satellite dataset (.nc, .h5, .hdf5) to the server.
@@ -41,7 +41,6 @@ async def upload_multiple_files(files: List[UploadFile] = File(...)):
     Upload multiple satellite datasets at once.
     """
     try:
-        # Saari files ko parallel me process karenge
         tasks = [UploadService.process_upload(file) for file in files]
         results = await asyncio.gather(*tasks)
 
@@ -58,13 +57,14 @@ async def upload_multiple_files(files: List[UploadFile] = File(...)):
         )
 
 
+# 🚨 FIX: Double routing yahan bhi
 @router.get("", response_model=ApiResponse)
+@router.get("/", response_model=ApiResponse)
 async def list_uploaded_files():
     """
     Get a list of all uploaded dataset folders and their sizes directly from Hugging Face.
     """
     try:
-        # Check remote bucket directory
         bucket_path = f"hf://buckets/{HF_BUCKET_ID}/"
         folders = fs.ls(bucket_path, detail=False)
 
@@ -108,7 +108,6 @@ async def delete_file(file_id: str):
         raise HTTPException(status_code=404, detail="File directory not found in cloud")
 
     try:
-        # Poora UUID folder cloud se uda do
         fs.rm(remote_dir, recursive=True)
         return ApiResponse(
             success=True,
