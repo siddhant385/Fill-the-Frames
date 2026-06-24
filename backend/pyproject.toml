@@ -21,3 +21,6 @@ dependencies = [
 [tool.pyright]
 venvPath = "~/Projects/satellite_video_feed/"
 venv = ".venv"
+
+[tool.setuptools]
+packages = ["app"]
