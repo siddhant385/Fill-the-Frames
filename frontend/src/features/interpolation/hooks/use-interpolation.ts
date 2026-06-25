@@ -2,8 +2,7 @@ import { useRef, useEffect } from 'react';
 import { useInterpolationStore } from '@/store/interpolation-store';
 import { useValidationStore } from '@/store/validation-store';
 import { interpolationClient } from '@/lib/api/interpolation-client';
-
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api/v1";
+import { BASE_URL } from '@/lib/api/base-client';
 
 export function useInterpolation() {
   const store = useInterpolationStore();

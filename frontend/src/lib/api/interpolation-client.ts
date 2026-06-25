@@ -1,6 +1,5 @@
 import { ApiResponse } from "@/types/api";
-
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api/v1";
+import { BASE_URL } from "./base-client";
 
 export const interpolationClient = {
   generateInterpolation: async (fileId1: string, fileId2: string, variable: string = "C13"): Promise<ApiResponse> => {
