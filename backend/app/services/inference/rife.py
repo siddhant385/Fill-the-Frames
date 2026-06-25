@@ -2,6 +2,8 @@ import math
 
 import dask.array as da
 import numpy as np
+import pandas as pd  # 🚨 NEW IMPORT
+import xarray as xr  # 🚨 NEW IMPORT
 from loguru import logger
 from satpy import Scene
 
@@ -127,27 +129,32 @@ class SatelliteInterpolationModel:
         channel: str = "C13",
         interpolated_time=None,
     ) -> str:
-        """NumPy array ko SatPy Scene me wapas daal kar CF-compliant NetCDF (.nc) save karta hai"""
-        logger.info(f"Injecting AI prediction back into SatPy Scene for {output_path}")
+        """Universal Saver: Handles both GOES (via SatPy) and INSAT (via Xarray Fallback)"""
+        logger.info(f"Injecting AI prediction back into Scene for {output_path}")
 
         # 1. Update Interpolated Time in Global and Channel Attributes
         if interpolated_time:
             original_scene.attrs["start_time"] = interpolated_time
             original_scene.attrs["end_time"] = interpolated_time
-            if "start_time" in original_scene[channel].attrs:
+            if (
+                channel in original_scene
+                and "start_time" in original_scene[channel].attrs
+            ):
                 original_scene[channel].attrs["start_time"] = interpolated_time
-            if "end_time" in original_scene[channel].attrs:
+            if (
+                channel in original_scene
+                and "end_time" in original_scene[channel].attrs
+            ):
                 original_scene[channel].attrs["end_time"] = interpolated_time
 
         # Update descriptions
         original_scene.attrs["description"] = "AI Interpolated Frame (RIFE Engine)"
-        original_scene[channel].attrs["description"] = "AI Interpolated GOES Frame"
+        if channel in original_scene:
+            original_scene[channel].attrs[
+                "description"
+            ] = "AI Interpolated Satellite Frame"
 
-        # 2. Convert and Inject the Dask Array
-        dask_array = da.from_array(image_array)
-        original_scene[channel].data = dask_array
-
-        # 3. Clean Attributes (To avoid NetCDF serialization crash with numpy datatypes)
+        # 2. Clean Attributes (To avoid NetCDF serialization crash with numpy datatypes)
         def clean_attrs(attrs_dict):
             for key in list(attrs_dict.keys()):
                 val = attrs_dict[key]
@@ -157,13 +164,44 @@ class SatelliteInterpolationModel:
                     attrs_dict[key] = val.item()
 
         clean_attrs(original_scene.attrs)
-        clean_attrs(original_scene[channel].attrs)
+        if channel in original_scene:
+            clean_attrs(original_scene[channel].attrs)
 
-        # 4. Save
-        logger.info("Saving CF-compliant NetCDF via SatPy...")
-        original_scene.save_datasets(
-            writer="cf", datasets=[channel], filename=output_path
-        )
+        # 3. ATTEMPT SAVE: The Dual-Engine Logic
+        try:
+            # Koshish 1: SatPy CF Writer (Works perfectly for NASA/GOES)
+            logger.info("Attempting to save CF-compliant NetCDF via SatPy...")
+            dask_array = da.from_array(image_array)
+            original_scene[channel].data = dask_array
 
-        logger.success(f"File saved successfully at {output_path}")
+            original_scene.save_datasets(
+                writer="cf", datasets=[channel], filename=output_path
+            )
+            logger.success(f"File saved successfully via SatPy at {output_path}")
+
+        except Exception as e:
+            # Koshish 2: Xarray Direct Writer (Saves the day for ISRO .h5 files)
+            logger.warning(
+                f"SatPy CF writer failed (Likely ISRO file format mismatch): {e}"
+            )
+            logger.info("Falling back to Universal Xarray Saver...")
+
+            # Seedha numpy array aur time uthao, aur nayi fresh .nc file bana do
+            ds = xr.Dataset(
+                {channel: (["y", "x"], image_array)},
+                coords={
+                    "time": (
+                        pd.to_datetime(interpolated_time)
+                        if interpolated_time
+                        else pd.Timestamp.now()
+                    )
+                },
+            )
+            ds.attrs["description"] = "AI Interpolated ISRO Frame (RIFE Engine)"
+
+            ds.to_netcdf(output_path)
+            logger.success(
+                f"File saved successfully via Xarray Fallback at {output_path}"
+            )
+
         return output_path
