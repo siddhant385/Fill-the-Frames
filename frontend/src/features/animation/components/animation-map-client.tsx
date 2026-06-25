@@ -21,13 +21,30 @@ function MapController({ bounds }: { bounds: [[number, number], [number, number]
 }
 
 export default function AnimationMapClient() {
-  const { frames, currentFrameIndex } = useAnimationStore();
-  const currentFrame = frames[currentFrameIndex];
+  const { frames, currentFrameIndex, selectedVariable } = useAnimationStore();
+  
+  // Filter frames by selected variable
+  const filteredFrames = selectedVariable 
+    ? frames.filter(f => f.variable === selectedVariable)
+    : frames;
+    
+  // Since index might be out of bounds for filtered frames, bound it
+  const safeIndex = currentFrameIndex < filteredFrames.length ? currentFrameIndex : 0;
+  const currentFrame = filteredFrames[safeIndex];
 
   const bounds = currentFrame?.bounds || DEFAULT_BOUNDS;
 
   return (
     <div className="w-full h-[600px] rounded-xl overflow-hidden border border-slate-800 shadow-xl relative z-0">
+      {filteredFrames.length === 0 && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm">
+          <div className="text-center space-y-2">
+            <div className="w-12 h-12 rounded-full border-2 border-slate-700 border-t-blue-500 animate-spin mx-auto" />
+            <p className="text-slate-400 text-sm font-medium">Waiting for sequence data...</p>
+          </div>
+        </div>
+      )}
+      
       <MapContainer
         bounds={bounds}
         zoomControl={true}

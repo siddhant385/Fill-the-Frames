@@ -33,39 +33,55 @@ export const useAnimationStore = create<AnimationStore>((set, get) => ({
   error: null,
 
   setFrames: (frames) => set({ frames }),
+  
   play: () => {
-    const { frames, currentFrameIndex } = get();
-    if (frames.length === 0) return;
+    const { frames, selectedVariable, currentFrameIndex } = get();
+    const filtered = selectedVariable ? frames.filter(f => f.variable === selectedVariable) : frames;
+    if (filtered.length === 0) return;
     
+    // Check if current index is out of bounds for the filtered array
     set({ 
       playing: true,
-      currentFrameIndex: currentFrameIndex >= frames.length - 1 ? 0 : currentFrameIndex 
+      currentFrameIndex: currentFrameIndex >= filtered.length - 1 ? 0 : currentFrameIndex 
     });
   },
+  
   pause: () => set({ playing: false }),
+  
   stop: () => set({ playing: false, currentFrameIndex: 0 }),
+  
   nextFrame: () => {
-    const { frames, currentFrameIndex } = get();
-    if (frames.length === 0) return;
+    const { frames, selectedVariable, currentFrameIndex } = get();
+    const filtered = selectedVariable ? frames.filter(f => f.variable === selectedVariable) : frames;
+    if (filtered.length === 0) return;
     set({
-      currentFrameIndex: (currentFrameIndex + 1) % frames.length,
+      currentFrameIndex: (currentFrameIndex + 1) % filtered.length,
     });
   },
+  
   prevFrame: () => {
-    const { frames, currentFrameIndex } = get();
-    if (frames.length === 0) return;
+    const { frames, selectedVariable, currentFrameIndex } = get();
+    const filtered = selectedVariable ? frames.filter(f => f.variable === selectedVariable) : frames;
+    if (filtered.length === 0) return;
     set({
-      currentFrameIndex: currentFrameIndex > 0 ? currentFrameIndex - 1 : frames.length - 1,
+      currentFrameIndex: currentFrameIndex > 0 ? currentFrameIndex - 1 : filtered.length - 1,
     });
   },
+  
   jumpToFrame: (index: number) => {
-    const { frames } = get();
-    if (index >= 0 && index < frames.length) {
+    const { frames, selectedVariable } = get();
+    const filtered = selectedVariable ? frames.filter(f => f.variable === selectedVariable) : frames;
+    if (index >= 0 && index < filtered.length) {
       set({ currentFrameIndex: index });
     }
   },
+  
   setSpeed: (speed: number) => set({ playbackSpeed: speed }),
-  setSelectedVariable: (variable: string | null) => set({ selectedVariable: variable }),
+  
+  setSelectedVariable: (variable: string | null) => set({ 
+    selectedVariable: variable,
+    currentFrameIndex: 0 // Reset index when variable changes
+  }),
   setLoading: (loading: boolean) => set({ loading }),
   setError: (error: string | null) => set({ error }),
 }));
