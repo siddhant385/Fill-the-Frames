@@ -1,6 +1,6 @@
 'use client';
 
-// import { useUploadStore } from '@/store/upload-store';
+
 import { Card, CardContent } from '@/components/ui/card';
 import { File, CheckCircle2, AlertCircle, HardDrive } from 'lucide-react';
 

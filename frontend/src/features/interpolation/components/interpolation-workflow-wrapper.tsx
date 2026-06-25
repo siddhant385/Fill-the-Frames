@@ -29,13 +29,15 @@ export function InterpolationWorkflowWrapper() {
   }, [store.status, store.currentStep, store]);
 
   const handleT0Upload = async (fileId: string, filename: string) => {
+    console.log("T0 Upload:", fileId, filename);
     store.setUploadState({
       t0FileId: fileId,
       t0Filename: filename,
     });
 
-    store.nextStep();
+    
     await fetchInterpolationMetadata(fileId, 't0');
+    store.nextStep();
   };
 
   const handleT1Upload = async (fileId: string, filename: string) => {
@@ -44,8 +46,9 @@ export function InterpolationWorkflowWrapper() {
       t1Filename: filename,
     });
 
-    store.nextStep();
+    
     await fetchInterpolationMetadata(fileId, 't1');
+    store.nextStep();
   };
 
   const renderMetadata = (metadata: MetadataResponse | null, type: 'T0' | 'T1') => {

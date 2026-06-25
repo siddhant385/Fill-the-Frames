@@ -1,16 +1,29 @@
 'use client';
 
-import { UploadFile } from '@/store/upload-store';
-import { File, AlertCircle, CheckCircle2, Play, X, Loader2 } from 'lucide-react';
+export type UploadStatus = 'pending' | 'validating' | 'ready' | 'uploading' | 'completed' | 'error';
+
+export interface UploadFile {
+  id: string;
+  file: File;
+  progress: number;
+  status: UploadStatus;
+  error?: string;
+  uploadedAt?: Date;
+  fileType?: 'netcdf' | 'hdf5';
+  cloudFileId?: string;
+}
+
+import { File as FileIcon, AlertCircle, CheckCircle2, Play, X, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { UploadProgress } from './UploadProgress';
 
 export function UploadCard({ fileData }: { fileData: UploadFile }) {
-  // 🚨 FIX: simulateUpload ki jagah uploadFileToServer use kar rahe hain
   // const { removeFile, uploadFileToServer } = useUploadStore();
-  const removeFile = (_id: string) => {};
-  const uploadFileToServer = (_id: string) => {};
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const removeFile = (id: string) => {};
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const uploadFileToServer = (id: string) => {};
   const { file, status, progress, error, fileType } = fileData;
   const fileSize = (file.size / (1024 * 1024)).toFixed(2);
 
@@ -19,7 +32,7 @@ export function UploadCard({ fileData }: { fileData: UploadFile }) {
       case 'error': return <AlertCircle className="h-5 w-5 text-destructive" />;
       case 'completed': return <CheckCircle2 className="h-5 w-5 text-green-500" />;
       case 'uploading': return <Loader2 className="h-5 w-5 text-primary animate-spin" />;
-      default: return <File className="h-5 w-5 text-muted-foreground" />;
+      default: return <FileIcon className="h-5 w-5 text-muted-foreground" />;
     }
   };
 

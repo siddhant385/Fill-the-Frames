@@ -27,6 +27,9 @@ export function useValidation() {
           alignedGroundTruth: res.data.aligned_ground_truth,
           differenceMap: res.data.difference_map,
         });
+
+        // Trigger metrics computation immediately after alignment
+        computeMetrics();
       } else {
         store.setValidationState({ 
           validationLoading: false, 
@@ -38,6 +41,32 @@ export function useValidation() {
       store.setValidationState({
         validationLoading: false,
         validationError: errorMsg,
+      });
+    }
+  };
+
+  const computeMetrics = async () => {
+    if (!store.artifactId || !store.groundTruthFileId) return;
+
+    store.setMetricsState({ metricsLoading: true, metricsError: null });
+
+    try {
+      const metricsData = await validationClient.compareMetrics({
+        generated_file_id: store.artifactId,
+        ground_truth_file_id: store.groundTruthFileId,
+        variable: "C13",
+      });
+
+      store.setMetricsState({
+        metricsLoading: false,
+        metrics: metricsData,
+      });
+      store.setMetricsComputed(true);
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'An error occurred calculating metrics';
+      store.setMetricsState({
+        metricsLoading: false,
+        metricsError: errorMsg,
       });
     }
   };

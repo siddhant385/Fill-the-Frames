@@ -20,6 +20,16 @@ export interface ValidationAlignmentResponse {
   metadata: Record<string, unknown>;
 }
 
+export interface MetricsResponse {
+  ssim: number;
+  psnr: number;
+  mse: number;
+  fsim: number | null;
+  issm: number | null;
+  quality_score: number;
+  summary: string;
+}
+
 export const validationClient = {
   alignFrames: async (request: ValidationAlignmentRequest): Promise<ApiResponse<ValidationAlignmentResponse>> => {
     const response = await fetch(`${BASE_URL}/validation/align`, {
@@ -36,4 +46,20 @@ export const validationClient = {
 
     return response.json();
   },
+
+  compareMetrics: async (request: ValidationAlignmentRequest): Promise<MetricsResponse> => {
+    const response = await fetch(`${BASE_URL}/metrics/compare`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to compute metrics with status ${response.status}`);
+    }
+
+    return response.json();
+  }
 };

@@ -27,7 +27,7 @@ export function UploadDropzone({ onUploadComplete }: { onUploadComplete?: (fileI
         if (response.success && response.data) {
           setSuccess(true);
           if (onUploadComplete) {
-            onUploadComplete(response.data.file_id, response.data.filename);
+            onUploadComplete(response.data.fileId, response.data.filename);
           }
         } else {
           setError(response.message || "Failed to upload file");
