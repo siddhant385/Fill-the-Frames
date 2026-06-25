@@ -54,37 +54,16 @@ export function InterpolationResultPreview({ jobState }: InterpolationResultPrev
   );
 }
 
-// Separate wrapper component to use the visualization hook cleanly
+import { visualizationClient } from '@/lib/api/visualization-client';
+
+// Separate wrapper component to bypass complex visualization hooks
 function PreviewWrapper({ fileId }: { fileId: string }) {
-  const vis = useVisualization(fileId);
-
-  if (vis.state === 'loading') {
-    return (
-      <div className="w-full h-full min-h-[400px] flex flex-col items-center justify-center text-muted-foreground">
-        <Loader2 className="w-8 h-8 animate-spin mb-4" />
-        <p>Loading generated frame visualization...</p>
-      </div>
-    );
-  }
-
-  // Allow passing even if data is null, as long as we have layerUrl (for leaflet maps)
-  if (vis.state === 'error') {
-    return (
-      <div className="w-full h-full min-h-[400px] flex items-center justify-center p-4">
-        <p className="text-destructive">Failed to load frame visualization.</p>
-      </div>
-    );
-  }
+  const generatedLayerUrl = visualizationClient.getLayerUrl(fileId, "C13", 0);
 
   return (
     <div className="w-full h-full min-h-[400px] relative">
       <SatelliteViewer 
-        layerUrl={vis.layerUrl}
-        bounds={vis.bounds}
-        data={vis.data}
-        colorMap={vis.colorMap}
-        onHover={vis.handleHover}
-        onUnhover={vis.handleUnhover}
+        layerUrl={generatedLayerUrl}
       />
     </div>
   );
