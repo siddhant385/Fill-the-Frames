@@ -3,17 +3,21 @@ import { ExportJob, ExportOptions } from "../types";
 import { DEFAULT_EXPORT_OPTIONS } from "../constants";
 import { exportClient } from "@/lib/api/export-client";
 import { useInterpolationStore } from "@/store/interpolation-store";
+import { useValidationStore } from "@/store/validation-store";
 
 export function useExport() {
   const [options, setOptions] = useState<ExportOptions>(DEFAULT_EXPORT_OPTIONS);
   const [jobs, setJobs] = useState<ExportJob[]>([]);
   const interpolationStore = useInterpolationStore();
+  const validationStore = useValidationStore();
 
   const startExport = useCallback(() => {
-    const targetFileId = interpolationStore.outputFileId;
+    let targetFileId = interpolationStore.outputFileId || validationStore.artifactId;
+    
     if (!targetFileId) {
-      alert("No generated file available for export. Please run interpolation first.");
-      return;
+      const userInput = window.prompt("No generated file detected in session. Enter the File/Artifact ID you wish to download:");
+      if (!userInput) return;
+      targetFileId = userInput;
     }
     
     const newJobId = `job-${Date.now()}`;
@@ -27,14 +31,14 @@ export function useExport() {
       createdAt: new Date().toISOString(),
       completedAt: new Date().toISOString(),
       downloadUrl: downloadUrl,
-      fileSize: "Unknown" // Can't know size until downloaded
+      fileSize: "Unknown" 
     };
 
     setJobs((prev) => [newJob, ...prev]);
 
     // Open download directly
     window.open(downloadUrl, "_blank");
-  }, [options, interpolationStore.outputFileId]);
+  }, [options, interpolationStore.outputFileId, validationStore.artifactId]);
 
   const cancelExport = useCallback((jobId: string) => {
     // Not applicable since it's instant

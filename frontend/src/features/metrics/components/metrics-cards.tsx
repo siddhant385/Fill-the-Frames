@@ -30,11 +30,11 @@ export function MetricsCards({ metrics }: MetricsCardsProps) {
             </div>
             
             <div className="flex flex-col">
-              <span className={cn("text-3xl font-black", metric.value === null ? "text-muted-foreground text-xl" : "text-foreground")}>
-                {metric.value !== null ? metric.value.toFixed(3) : "Pending"}
+              <span className={cn("text-3xl font-black", typeof metric.value !== 'number' ? "text-muted-foreground text-xl" : "text-foreground")}>
+                {typeof metric.value === 'number' ? metric.value.toFixed(3) : "Pending"}
               </span>
               <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mt-1">
-                {metric.value === null ? "Not Available" : `Target: ${metric.better}`}
+                {typeof metric.value !== 'number' ? "Not Available" : `Target: ${metric.better}`}
               </span>
             </div>
           </CardContent>
