@@ -1,20 +1,24 @@
 "use client";
 
-import React, { useRef, useImperativeHandle, forwardRef } from 'react';
-import dynamic from 'next/dynamic';
+import React, { useImperativeHandle, forwardRef, useState } from 'react';
 import { FrameDataResponse, ColorMap } from '../types';
-import { COLOR_MAPS } from '../constants';
-import { useTheme } from 'next-themes';
+import dynamic from 'next/dynamic';
+import { LatLngBoundsExpression } from 'leaflet';
 
-const Plot = dynamic(() => import('react-plotly.js'), { ssr: false });
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://sid385-fill-the-frames.hf.space/api/v1";
 
-import type { PlotMouseEvent } from 'plotly.js';
+const LeafletMap = dynamic(
+  () => import('./leaflet-map'),
+  { ssr: false, loading: () => <div className="w-full h-full flex items-center justify-center animate-pulse bg-muted"><p className="text-muted-foreground">Loading Map...</p></div> }
+);
 
 interface SatelliteViewerProps {
-  data: FrameDataResponse;
-  colorMap: ColorMap;
-  onHover: (e: Readonly<PlotMouseEvent>) => void;
-  onUnhover: () => void;
+  layerUrl?: string | null;
+  bounds?: [number, number, number, number];
+  colorMap?: ColorMap;
+  data?: FrameDataResponse | null;
+  onHover?: (e: any) => void;
+  onUnhover?: () => void;
 }
 
 export interface SatelliteViewerRef {
@@ -22,56 +26,33 @@ export interface SatelliteViewerRef {
 }
 
 export const SatelliteViewer = forwardRef<SatelliteViewerRef, SatelliteViewerProps>(
-  ({ data, colorMap, onHover, onUnhover }, ref) => {
-    const { theme } = useTheme();
-    const isDark = theme === 'dark' || true; // Force dark theme styling per requirements if needed
-    const revisionRef = useRef(0);
+  ({ layerUrl, bounds }, ref) => {
+    const [resetTrigger, setResetTrigger] = useState(0);
 
     useImperativeHandle(ref, () => ({
       resetView: () => {
-        revisionRef.current += 1; // Trigger a re-render in Plotly to reset view
+        setResetTrigger(prev => prev + 1);
       }
     }));
 
-    const layout: Partial<Plotly.Layout> = {
-      autosize: true,
-      margin: { l: 40, r: 10, b: 40, t: 10, pad: 4 },
-      paper_bgcolor: 'transparent',
-      plot_bgcolor: 'transparent',
-      font: { color: isDark ? '#e2e8f0' : '#1e293b' },
-      xaxis: { title: { text: 'X' }, showgrid: false, zeroline: false },
-      yaxis: { title: { text: 'Y' }, showgrid: false, zeroline: false, autorange: 'reversed' },
-      dragmode: 'pan',
-    };
+    if (!layerUrl) {
+       return (
+         <div className="w-full h-full min-h-[400px] md:min-h-[600px] flex items-center justify-center border rounded-lg overflow-hidden bg-background">
+           <p className="text-muted-foreground">No layer data available</p>
+         </div>
+       );
+    }
+
+    const fullUrl = layerUrl.startsWith('http') ? layerUrl : `${BASE_URL}${layerUrl}`;
+
+    let mapBounds: LatLngBoundsExpression = [[-10, 40], [50, 110]];
+    if (bounds && bounds.length === 4) {
+      mapBounds = [[bounds[0], bounds[1]], [bounds[2], bounds[3]]];
+    }
 
     return (
-      <div className="w-full h-full min-h-[400px] md:min-h-[600px] border rounded-lg overflow-hidden bg-background">
-        <Plot
-          data={[
-            {
-              z: data.z,
-              type: 'heatmap',
-              colorscale: COLOR_MAPS[colorMap],
-              zmin: data.min,
-              zmax: data.max,
-              hoverinfo: 'x+y+z',
-              showscale: true,
-            }
-          ]}
-          layout={layout}
-          useResizeHandler={true}
-          style={{ width: '100%', height: '100%' }}
-          onHover={onHover}
-          onUnhover={onUnhover}
-          revision={revisionRef.current}
-          config={{
-            responsive: true,
-            scrollZoom: true,
-            displayModeBar: true,
-            modeBarButtonsToRemove: ['lasso2d', 'select2d', 'autoScale2d'],
-            displaylogo: false,
-          }}
-        />
+      <div className="relative w-full h-full min-h-[400px] md:min-h-[600px] border rounded-lg overflow-hidden bg-background">
+        <LeafletMap url={fullUrl} bounds={mapBounds} resetTrigger={resetTrigger} />
       </div>
     );
   }

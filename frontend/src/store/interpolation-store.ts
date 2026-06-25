@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { InterpolationJobState, InterpolationConfig } from '@/features/interpolation/types';
 import { DEFAULT_INTERPOLATION_CONFIG } from '@/features/interpolation/constants';
 import { FrameDataResponse } from '@/features/visualization/types';
@@ -33,17 +34,9 @@ interface InterpolationState extends InterpolationJobState {
   
   setJobState: (state: Partial<InterpolationJobState>) => void;
   updateConfig: (config: Partial<InterpolationConfig>) => void;
-
-  
-  // Upload Actions
   setUploadState: (state: Partial<Pick<InterpolationState, 't0FileId' | 't1FileId' | 't0Filename' | 't1Filename'>>) => void;
-
-  // Metadata Actions
   setMetadataState: (state: Partial<Pick<InterpolationState, 't0Metadata' | 't1Metadata' | 'metadataLoading' | 'metadataError'>>) => void;
-
-  // Visualization Actions
   setVisState: (state: Partial<Pick<InterpolationState, 'selectedVariable' | 'selectedTimeIndex' | 'currentFrame' | 'availableVariables' | 'visLoading' | 'visError'>>) => void;
-  
   reset: () => void;
 }
 
@@ -54,66 +47,82 @@ const initialState: InterpolationJobState = {
   outputFileId: null,
 };
 
-export const useInterpolationStore = create<InterpolationState>((set) => ({
-  currentStep: 1,
-  ...initialState,
-  
-  t0FileId: null,
-  t1FileId: null,
-  t0Filename: null,
-  t1Filename: null,
-  
-  t0Metadata: null,
-  t1Metadata: null,
-  metadataLoading: false,
-  metadataError: null,
-  
-  selectedVariable: null,
-  selectedTimeIndex: 0,
-  currentFrame: null,
-  availableVariables: [],
-  visLoading: false,
-  visError: null,
-  
-  setStep: (step) => set({ currentStep: step }),
-  nextStep: () => set((state) => ({ currentStep: state.currentStep + 1 })),
-  prevStep: () => set((state) => ({ currentStep: Math.max(1, state.currentStep - 1) })),
-  
-  setJobState: (newState) => set((state) => ({ ...state, ...newState })),
-  
-  updateConfig: (newConfig) => set((state) => ({
-    config: { ...state.config, ...newConfig }
-  })),
-  
-
-
-  setUploadState: (newState) => set((state) => ({ ...state, ...newState })),
-
-  setMetadataState: (newState) => set((state) => ({ ...state, ...newState })),
-
-  setVisState: (newState) => set((state) => ({ ...state, ...newState })),
-
-  reset: () => set({
-    currentStep: 1,
-    ...initialState,
-    jobId: undefined,
-    startedAt: undefined,
-    completedAt: undefined,
-    error: undefined,
-    t0FileId: null,
-    t1FileId: null,
-    t0Filename: null,
-    t1Filename: null,
-    t0Metadata: null,
-    t1Metadata: null,
-    metadataLoading: false,
-    metadataError: null,
-    selectedVariable: null,
-    selectedTimeIndex: 0,
-    currentFrame: null,
-    availableVariables: [],
-    visLoading: false,
-    visError: null,
-  }),
-}));
+export const useInterpolationStore = create<InterpolationState>()(
+  persist(
+    (set) => ({
+      currentStep: 1,
+      ...initialState,
+      
+      t0FileId: null,
+      t1FileId: null,
+      t0Filename: null,
+      t1Filename: null,
+      
+      t0Metadata: null,
+      t1Metadata: null,
+      metadataLoading: false,
+      metadataError: null,
+      
+      selectedVariable: null,
+      selectedTimeIndex: 0,
+      currentFrame: null,
+      availableVariables: [],
+      visLoading: false,
+      visError: null,
+      
+      setStep: (step) => set({ currentStep: step }),
+      nextStep: () => set((state) => ({ currentStep: state.currentStep + 1 })),
+      prevStep: () => set((state) => ({ currentStep: Math.max(1, state.currentStep - 1) })),
+      
+      setJobState: (newState) => set((state) => ({ ...state, ...newState })),
+      updateConfig: (newConfig) => set((state) => ({ config: { ...state.config, ...newConfig } })),
+      
+      setUploadState: (newState) => set((state) => ({ ...state, ...newState })),
+      setMetadataState: (newState) => set((state) => ({ ...state, ...newState })),
+      setVisState: (newState) => set((state) => ({ ...state, ...newState })),
+      
+      reset: () => set({
+        currentStep: 1,
+        ...initialState,
+        jobId: undefined,
+        startedAt: undefined,
+        completedAt: undefined,
+        error: undefined,
+        t0FileId: null,
+        t1FileId: null,
+        t0Filename: null,
+        t1Filename: null,
+        t0Metadata: null,
+        t1Metadata: null,
+        metadataLoading: false,
+        metadataError: null,
+        selectedVariable: null,
+        selectedTimeIndex: 0,
+        currentFrame: null,
+        availableVariables: [],
+        visLoading: false,
+        visError: null,
+      }),
+    }),
+    {
+      name: 'interpolation-storage',
+      partialize: (state) => ({
+        currentStep: state.currentStep,
+        status: state.status,
+        progress: state.progress,
+        config: state.config,
+        outputFileId: state.outputFileId,
+        jobId: state.jobId,
+        startedAt: state.startedAt,
+        completedAt: state.completedAt,
+        t0FileId: state.t0FileId,
+        t1FileId: state.t1FileId,
+        t0Filename: state.t0Filename,
+        t1Filename: state.t1Filename,
+        t0Metadata: state.t0Metadata,
+        t1Metadata: state.t1Metadata,
+      })
+    }
+  )
+);
 

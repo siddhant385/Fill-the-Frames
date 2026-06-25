@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { MetadataResponse } from '@/features/metadata/types';
 import { FrameDataResponse } from '@/features/visualization/types';
 import { DifferenceMapData } from '@/features/comparison/types';
@@ -6,7 +7,7 @@ import { MetricsResponse } from '@/lib/api/validation-client';
 
 interface ValidationState {
   currentStep: number;
-  artifactId: string | null; // loaded generated T0.5
+  artifactId: string | null;
   groundTruthFileId: string | null;
   groundTruthFilename: string | null;
   metricsComputed: boolean;
@@ -40,55 +41,72 @@ interface ValidationState {
   reset: () => void;
 }
 
-export const useValidationStore = create<ValidationState>((set) => ({
-  currentStep: 1,
-  artifactId: null,
-  groundTruthFileId: null,
-  groundTruthFilename: null,
-  metricsComputed: false,
-  
-  groundTruthMetadata: null,
-  metadataLoading: false,
-  metadataError: null,
+export const useValidationStore = create<ValidationState>()(
+  persist(
+    (set) => ({
+      currentStep: 1,
+      artifactId: null,
+      groundTruthFileId: null,
+      groundTruthFilename: null,
+      metricsComputed: false,
+      
+      groundTruthMetadata: null,
+      metadataLoading: false,
+      metadataError: null,
 
-  validationPair: null,
-  alignedGenerated: null,
-  alignedGroundTruth: null,
-  differenceMap: null,
-  validationLoading: false,
-  validationError: null,
+      validationPair: null,
+      alignedGenerated: null,
+      alignedGroundTruth: null,
+      differenceMap: null,
+      validationLoading: false,
+      validationError: null,
 
-  metrics: null,
-  metricsLoading: false,
-  metricsError: null,
+      metrics: null,
+      metricsLoading: false,
+      metricsError: null,
 
-  setStep: (step) => set({ currentStep: step }),
-  nextStep: () => set((state) => ({ currentStep: state.currentStep + 1 })),
-  prevStep: () => set((state) => ({ currentStep: Math.max(1, state.currentStep - 1) })),
-  setArtifactId: (id) => set({ artifactId: id }),
-  setGroundTruthFileId: (id) => set({ groundTruthFileId: id }),
-  setGroundTruthFilename: (filename) => set({ groundTruthFilename: filename }),
-  setMetricsComputed: (computed) => set({ metricsComputed: computed }),
-  setMetadataState: (newState) => set((state) => ({ ...state, ...newState })),
-  setValidationState: (newState) => set((state) => ({ ...state, ...newState })),
-  setMetricsState: (newState) => set((state) => ({ ...state, ...newState })),
-  reset: () => set({
-    currentStep: 1,
-    artifactId: null,
-    groundTruthFileId: null,
-    groundTruthFilename: null,
-    metricsComputed: false,
-    groundTruthMetadata: null,
-    metadataLoading: false,
-    metadataError: null,
-    validationPair: null,
-    alignedGenerated: null,
-    alignedGroundTruth: null,
-    differenceMap: null,
-    validationLoading: false,
-    validationError: null,
-    metrics: null,
-    metricsLoading: false,
-    metricsError: null,
-  }),
-}));
+      setStep: (step) => set({ currentStep: step }),
+      nextStep: () => set((state) => ({ currentStep: state.currentStep + 1 })),
+      prevStep: () => set((state) => ({ currentStep: Math.max(1, state.currentStep - 1) })),
+      setArtifactId: (id) => set({ artifactId: id }),
+      setGroundTruthFileId: (id) => set({ groundTruthFileId: id }),
+      setGroundTruthFilename: (filename) => set({ groundTruthFilename: filename }),
+      setMetricsComputed: (computed) => set({ metricsComputed: computed }),
+      setMetadataState: (newState) => set((state) => ({ ...state, ...newState })),
+      setValidationState: (newState) => set((state) => ({ ...state, ...newState })),
+      setMetricsState: (newState) => set((state) => ({ ...state, ...newState })),
+      reset: () => set({
+        currentStep: 1,
+        artifactId: null,
+        groundTruthFileId: null,
+        groundTruthFilename: null,
+        metricsComputed: false,
+        groundTruthMetadata: null,
+        metadataLoading: false,
+        metadataError: null,
+        validationPair: null,
+        alignedGenerated: null,
+        alignedGroundTruth: null,
+        differenceMap: null,
+        validationLoading: false,
+        validationError: null,
+        metrics: null,
+        metricsLoading: false,
+        metricsError: null,
+      }),
+    }),
+    {
+      name: 'validation-storage',
+      partialize: (state) => ({
+        currentStep: state.currentStep,
+        artifactId: state.artifactId,
+        groundTruthFileId: state.groundTruthFileId,
+        groundTruthFilename: state.groundTruthFilename,
+        metricsComputed: state.metricsComputed,
+        groundTruthMetadata: state.groundTruthMetadata,
+        validationPair: state.validationPair,
+        metrics: state.metrics,
+      })
+    }
+  )
+);
