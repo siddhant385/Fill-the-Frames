@@ -22,7 +22,8 @@ export function VisualizationDashboard() {
     toggleFullscreen,
     pixelData,
     handleHover,
-    handleUnhover
+    handleUnhover,
+    layerUrl
   } = useVisualization();
 
   const viewerRef = useRef<SatelliteViewerRef>(null);
@@ -73,6 +74,7 @@ export function VisualizationDashboard() {
       <div className={isFullscreen ? 'h-[80vh]' : 'h-full'}>
         <SatelliteViewer 
           ref={viewerRef}
+          layerUrl={layerUrl}
           data={data}
           colorMap={colorMap}
           onHover={handleHover}

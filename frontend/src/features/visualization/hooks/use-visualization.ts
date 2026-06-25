@@ -26,6 +26,8 @@ export function useVisualization(fileIdProp?: string) {
     colormapValue: null
   });
 
+  const [layerUrl, setLayerUrl] = useState<string | null>(null);
+
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -42,22 +44,14 @@ export function useVisualization(fileIdProp?: string) {
           return;
         }
 
+        // Generate the layer image URL
+        const url = visualizationClient.getLayerUrl(targetFileId, "C13", 0);
+        setLayerUrl(url);
+
         // Fetch variable metadata
         const response = await visualizationClient.getVariables(targetFileId);
         if (response.success && response.data) {
           setVariables(response.data);
-          
-          // NOTE: If the backend does not return raw 2D array data in the API,
-          // you may need to use Map/Leaflet with `visualizationClient.getLayerUrl`
-          // or parse the returned data if it's an array.
-          // For now, if the response doesn't contain a data matrix, fallback to mock data matrix
-          if (response.data.data_matrix) {
-             setData(response.data as any);
-          } else {
-             // Fallback to mock for the plotly 2D map if backend data format differs
-             setData(mockFrameData);
-          }
-          
           setState('ready');
         } else {
            throw new Error(response.message);
@@ -65,9 +59,7 @@ export function useVisualization(fileIdProp?: string) {
         
       } catch (error) {
         console.error("Failed to load visualization data:", error);
-        // Fallback to mock for development
-        setData(mockFrameData);
-        setState('ready');
+        setState('ready'); // Soft fail to show empty/error state gracefully
       }
     };
     
@@ -109,6 +101,7 @@ export function useVisualization(fileIdProp?: string) {
     toggleFullscreen,
     pixelData,
     handleHover,
-    handleUnhover
+    handleUnhover,
+    layerUrl
   };
 }

@@ -1,15 +1,14 @@
 "use client";
 
-import React, { useMemo } from 'react';
-import dynamic from 'next/dynamic';
+import React, { useState } from 'react';
 import type { Layout, PlotRelayoutEvent } from 'plotly.js';
 import { ComparisonFrame } from '../types';
 import { formatDate } from '@/features/metadata/utils/formatters';
-
-const Plot = dynamic(() => import('react-plotly.js'), { ssr: false });
+import { BASE_URL } from '@/lib/api';
 
 interface ComparisonViewerProps {
   frame: ComparisonFrame;
+  layerUrl?: string | null;
   sharedLayout: Partial<Layout>;
   onRelayout: (eventData: Readonly<PlotRelayoutEvent>) => void;
   colormap?: string;
@@ -18,61 +17,63 @@ interface ComparisonViewerProps {
 
 export function ComparisonViewer({ 
   frame, 
+  layerUrl,
   sharedLayout, 
   onRelayout,
   colormap = 'Inferno',
   hideMetadata = false
 }: ComparisonViewerProps) {
-  
-  const layout: Partial<Layout> = useMemo(() => ({
-    autosize: true,
-    margin: { l: 20, r: 10, b: 20, t: 10, pad: 4 },
-    paper_bgcolor: 'transparent',
-    plot_bgcolor: 'transparent',
-    xaxis: { 
-      title: { text: '' }, 
-      showgrid: false, 
-      zeroline: false,
-      ...(sharedLayout.xaxis || {})
-    },
-    yaxis: { 
-      title: { text: '' }, 
-      showgrid: false, 
-      zeroline: false, 
-      autorange: 'reversed',
-      ...(sharedLayout.yaxis || {})
-    },
-    dragmode: 'pan',
-  }), [sharedLayout]);
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [startDrag, setStartDrag] = useState({ x: 0, y: 0 });
 
+  const fullUrl = layerUrl 
+    ? (layerUrl.startsWith('http') ? layerUrl : `${BASE_URL}${layerUrl}`) 
+    : null;
+  
   return (
     <div className="flex flex-col h-full bg-muted/5 border rounded-lg overflow-hidden relative">
       <div className="absolute top-2 left-2 z-10 bg-background/80 backdrop-blur px-2 py-1 rounded text-xs font-semibold shadow-sm border">
         {frame.type}
       </div>
       
-      <div className="flex-1 w-full relative min-h-[300px]">
-        <Plot
-          data={[
-            {
-              z: frame.data,
-              type: 'heatmap',
-              colorscale: colormap,
-              zmin: frame.min,
-              zmax: frame.max,
-              showscale: false, // Hide individual color scales to save space
-            }
-          ]}
-          layout={layout}
-          useResizeHandler={true}
-          style={{ width: '100%', height: '100%', position: 'absolute' }}
-          onRelayout={onRelayout}
-          config={{
-            responsive: true,
-            scrollZoom: true,
-            displayModeBar: false,
+      <div className="flex-1 w-full relative min-h-[300px] flex items-center justify-center overflow-hidden bg-background/50"
+          onMouseDown={(e) => {
+            setIsDragging(true);
+            setStartDrag({ x: e.clientX - pan.x, y: e.clientY - pan.y });
           }}
-        />
+          onMouseMove={(e) => {
+            if (!isDragging) return;
+            setPan({ x: e.clientX - startDrag.x, y: e.clientY - startDrag.y });
+          }}
+          onMouseUp={() => setIsDragging(false)}
+          onMouseLeave={() => setIsDragging(false)}
+          style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+      >
+        {fullUrl ? (
+          <img 
+            src={fullUrl} 
+            alt="Satellite View" 
+            className="max-w-full max-h-full object-contain pointer-events-none transition-transform duration-75"
+            style={{ 
+              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+              transformOrigin: 'center center'
+            }}
+            crossOrigin="anonymous"
+          />
+        ) : (
+          <div className="text-muted-foreground text-sm opacity-60 flex flex-col items-center">
+             <span>Layer not available</span>
+             <span className="text-xs">Using placeholder</span>
+          </div>
+        )}
+      </div>
+
+      <div className="absolute bottom-16 right-2 flex gap-1 bg-background/80 backdrop-blur rounded border p-1 shadow-sm opacity-50 hover:opacity-100 transition-opacity">
+           <button onClick={() => setZoom(z => Math.min(z + 0.5, 5))} className="w-6 h-6 flex items-center justify-center hover:bg-secondary rounded text-xs font-medium">+</button>
+           <button onClick={() => { setZoom(1); setPan({x:0, y:0}); }} className="px-1 h-6 flex items-center justify-center hover:bg-secondary rounded text-[10px] font-medium text-muted-foreground">Reset</button>
+           <button onClick={() => setZoom(z => Math.max(z - 0.5, 0.5))} className="w-6 h-6 flex items-center justify-center hover:bg-secondary rounded text-xs font-medium">-</button>
       </div>
 
       {!hideMetadata && (

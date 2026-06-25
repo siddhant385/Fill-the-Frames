@@ -22,6 +22,7 @@ export function ComparisonDashboard() {
     sharedLayout, 
     handleRelayout, 
     resetView,
+    errorMapUrl,
     frames,
     differenceMap
   } = useComparison();
@@ -48,6 +49,7 @@ export function ComparisonDashboard() {
         {mode === 'difference-map' ? (
           <DifferenceMapViewer 
             differenceMap={differenceMap}
+            errorMapUrl={errorMapUrl}
             sharedLayout={sharedLayout}
             onRelayout={handleRelayout}
             isFullscreen={isFullscreen}
