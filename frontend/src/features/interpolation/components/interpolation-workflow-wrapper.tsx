@@ -3,6 +3,7 @@
 import React from 'react';
 import { useInterpolationStore } from '@/store/interpolation-store';
 import { WorkflowStepper, Step } from '@/components/common/workflow-stepper';
+import { WorkflowNavigation } from '@/components/common/workflow-navigation';
 import { UploadDropzone } from '@/features/upload/components/UploadDropzone';
 import { MetadataOverview } from '@/features/metadata/components/metadata-overview';
 import { InterpolationConfigPanel } from './interpolation-config-panel';
@@ -22,11 +23,11 @@ export function InterpolationWorkflowWrapper() {
   const { startInterpolation } = useInterpolation();
   const { fetchInterpolationMetadata } = useMetadata();
 
-  React.useEffect(() => {
-    if (store.status === 'completed' && store.currentStep === 5) {
-      store.nextStep();
-    }
-  }, [store.status, store.currentStep, store]);
+  // React.useEffect(() => {
+  //   if (store.status === 'completed' && store.currentStep === 5) {
+  //     store.nextStep();
+  //   }
+  // }, [store.status, store.currentStep, store]);
 
   const handleT0Upload = async (fileId: string, filename: string) => {
     console.log("T0 Upload:", fileId, filename);
@@ -138,6 +139,11 @@ export function InterpolationWorkflowWrapper() {
           </div>
           <InterpolationTimeline status={store.status} />
           <InterpolationStatus jobState={store} />
+          {store.status === 'completed' && (
+            <div className="flex justify-center pt-4">
+              <Button onClick={store.nextStep}>View Generated Result</Button>
+            </div>
+          )}
         </div>
       ),
     },
@@ -176,15 +182,11 @@ export function InterpolationWorkflowWrapper() {
     <div className="w-full max-w-5xl mx-auto py-8">
       <WorkflowStepper steps={steps} currentStep={store.currentStep} />
       
-      <div className="flex justify-between mt-8">
-        <Button 
-          variant="ghost" 
-          onClick={store.prevStep} 
-          disabled={store.currentStep === 1 || store.currentStep === 7}
-        >
-          Back
-        </Button>
-      </div>
+      <WorkflowNavigation 
+        currentStep={store.currentStep} 
+        totalSteps={steps.length} 
+        onPrev={store.prevStep} 
+      />
     </div>
   );
 }

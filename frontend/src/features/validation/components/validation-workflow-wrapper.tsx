@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useValidationStore } from '@/store/validation-store';
 import { WorkflowStepper, Step } from '@/components/common/workflow-stepper';
+import { WorkflowNavigation } from '@/components/common/workflow-navigation';
 import { UploadDropzone } from '@/features/upload/components/UploadDropzone';
 import { MetadataOverview } from '@/features/metadata/components/metadata-overview';
 import { ValidationViewer } from './validation-viewer';
@@ -42,15 +43,15 @@ export function ValidationWorkflowWrapper() {
   const { fetchValidationMetadata } = useMetadata();
   const { alignFrames } = useValidation();
 
-  React.useEffect(() => {
-    if (store.artifactId && store.currentStep === 1) {
-      store.nextStep();
-    }
-  }, [store.artifactId, store.currentStep, store]);
+  // React.useEffect(() => {
+  //   if (store.artifactId && store.currentStep === 1) {
+  //     store.nextStep();
+  //   }
+  // }, [store.artifactId, store.currentStep, store]);
 
   const handleArtifactLoad = () => {
     setArtifactId(tempArtifactId);
-    // nextStep is handled by the useEffect above
+    nextStep();
   };
 
   const handleGroundTruthUpload = async (fileId: string, filename: string) => {
@@ -198,15 +199,11 @@ export function ValidationWorkflowWrapper() {
     <div className="w-full max-w-6xl mx-auto py-8">
       <WorkflowStepper steps={steps} currentStep={currentStep} />
       
-      <div className="flex justify-between mt-8">
-        <Button 
-          variant="ghost" 
-          onClick={prevStep} 
-          disabled={currentStep === 1 || currentStep === 6}
-        >
-          Back
-        </Button>
-      </div>
+      <WorkflowNavigation 
+        currentStep={currentStep} 
+        totalSteps={steps.length} 
+        onPrev={prevStep} 
+      />
     </div>
   );
 }
