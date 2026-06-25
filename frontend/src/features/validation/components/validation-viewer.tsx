@@ -12,7 +12,7 @@ interface ValidationViewerProps {
   groundTruthData: FrameDataResponse | null;
 }
 
-export function ValidationViewer({ generatedData, groundTruthData }: ValidationViewerProps) {
+export function ValidationViewer() {
   const [sliderPosition, setSliderPosition] = useState(50);
   const containerRef = useRef<HTMLDivElement>(null);
   
@@ -34,7 +34,7 @@ export function ValidationViewer({ generatedData, groundTruthData }: ValidationV
     setSliderPosition(percent);
   };
 
-  if (!generatedData || !groundTruthData || !artifactId || !groundTruthFileId) {
+  if (!artifactId || !groundTruthFileId) {
     return (
       <div className="w-full h-[500px] flex items-center justify-center bg-muted/10 border rounded-lg">
         <p className="text-muted-foreground">Missing alignment data.</p>

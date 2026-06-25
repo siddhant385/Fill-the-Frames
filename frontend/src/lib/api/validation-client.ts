@@ -31,35 +31,21 @@ export interface MetricsResponse {
 }
 
 export const validationClient = {
-  alignFrames: async (request: ValidationAlignmentRequest): Promise<ApiResponse<ValidationAlignmentResponse>> => {
-    const response = await fetch(`${BASE_URL}/validation/align`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(request),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to align frames with status ${response.status}`);
-    }
-
-    return response.json();
-  },
-
   compareMetrics: async (request: ValidationAlignmentRequest): Promise<MetricsResponse> => {
-    const response = await fetch(`${BASE_URL}/metrics/compare`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(request),
+    const searchParams = new URLSearchParams();
+    searchParams.append("generated_file_id", request.generated_file_id);
+    searchParams.append("truth_file_id", request.ground_truth_file_id);
+    if (request.variable) searchParams.append("variable", request.variable);
+
+    const response = await fetch(`${BASE_URL}/metrics/compare?${searchParams.toString()}`, {
+      method: 'GET',
     });
 
     if (!response.ok) {
       throw new Error(`Failed to compute metrics with status ${response.status}`);
     }
 
-    return response.json();
+    const json = await response.json();
+    return json.data as MetricsResponse; // Because backend returns ApiResponse wrapper
   }
 };

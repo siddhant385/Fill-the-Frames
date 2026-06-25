@@ -15,8 +15,8 @@ export function MetadataVariableList({ data }: MetadataVariableListProps) {
   return (
     <MetadataCard title="Variables" description="Detailed list of data variables and their attributes.">
       <div className="space-y-4">
-        {data.variables.map((variable) => (
-          <VariableItem key={variable.name} variable={variable} />
+        {data.variables?.map((variable, index) => (
+          <VariableItem key={`${variable.name}-${index}`} variable={variable} />
         ))}
       </div>
     </MetadataCard>

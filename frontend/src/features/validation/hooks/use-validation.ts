@@ -10,32 +10,24 @@ export function useValidation() {
     store.setValidationState({ validationLoading: true, validationError: null });
 
     try {
-      const res = await validationClient.alignFrames({
-        generated_file_id: store.artifactId,
-        ground_truth_file_id: store.groundTruthFileId,
-        variable: "C13",
+      // Mocking alignment delay since backend doesn't have the /validation/align route yet
+      // The Leaflet images handle visual stacking using precise map bounds directly.
+      await new Promise(resolve => setTimeout(resolve, 800));
+
+      store.setValidationState({
+        validationLoading: false,
+        validationPair: {
+          generatedId: store.artifactId,
+          groundTruthId: store.groundTruthFileId,
+        },
+        alignedGenerated: null,   // We don't need pure JSON data; we use layerUrl now
+        alignedGroundTruth: null, // We don't need pure JSON data; we use layerUrl now
+        differenceMap: null,      // We use getErrorMapLayerUrl now instead of JSON
       });
 
-      if (res.success && res.data) {
-        store.setValidationState({
-          validationLoading: false,
-          validationPair: {
-            generatedId: res.data.generated_file_id,
-            groundTruthId: res.data.ground_truth_file_id,
-          },
-          alignedGenerated: res.data.aligned_generated,
-          alignedGroundTruth: res.data.aligned_ground_truth,
-          differenceMap: res.data.difference_map,
-        });
-
-        // Trigger metrics computation immediately after alignment
-        computeMetrics();
-      } else {
-        store.setValidationState({ 
-          validationLoading: false, 
-          validationError: res.message || 'Alignment failed' 
-        });
-      }
+      // Trigger metrics computation immediately after alignment
+      computeMetrics();
+      
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : 'An error occurred during alignment';
       store.setValidationState({

@@ -151,10 +151,7 @@ export function ValidationWorkflowWrapper() {
               <Button variant="outline" className="mt-4" onClick={alignFrames}>Retry Alignment</Button>
             </div>
           ) : (
-            <ValidationViewer 
-              generatedData={store.alignedGenerated} 
-              groundTruthData={store.alignedGroundTruth} 
-            />
+            <ValidationViewer />
           )}
           <div className="flex justify-center pt-4">
             <Button onClick={nextStep} disabled={store.validationLoading || !store.validationPair}>Analyze Difference Map</Button>
