@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Trash2, PlayCircle } from 'lucide-react';
 
 export function UploadQueue() {
-  const { files, clearCompleted, simulateAllReady } = useUploadStore();
+  const { files, clearCompleted, startAllReadyUploads } = useUploadStore();
 
   if (files.length === 0) return null;
 
@@ -20,7 +20,7 @@ export function UploadQueue() {
         <h3 className="text-lg font-semibold">Upload Queue</h3>
         <div className="flex gap-2">
           {hasReady && (
-            <Button size="sm" variant="outline" onClick={simulateAllReady} className="text-primary hover:text-primary">
+            <Button size="sm" variant="outline" onClick={startAllReadyUploads} className="text-primary hover:text-primary">
               <PlayCircle className="h-4 w-4 mr-2" /> Start All
             </Button>
           )}

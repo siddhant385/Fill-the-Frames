@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { validateSatelliteFile } from '@/features/upload/utils/file-validation';
-import { apiClient } from '@/lib/api-client';
+import { uploadClient } from '@/lib/api';
 
 export type UploadStatus = 'pending' | 'validating' | 'ready' | 'uploading' | 'completed' | 'error';
 
@@ -14,10 +14,7 @@ export interface UploadFile {
   fileType?: 'netcdf' | 'hdf5';
   cloudFileId?: string; // 🚨 NAYA: Hugging Face wala asli ID
 }
-<<<<<<< HEAD
 
-=======
->>>>>>> 386dd7c (done with interpolation will add some consistency in future)
 // 🚨 Yahan humne interface me naye functions add kiye hain
 interface UploadStore {
   files: UploadFile[];
@@ -69,7 +66,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     }));
 
     try {
-      const response = await apiClient.uploadFile(fileToUpload.file);
+      const response = await uploadClient.uploadFile(fileToUpload.file);
       
       if (response.success) {
         set((state) => ({
@@ -78,13 +75,9 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
               ...f, 
               progress: 100, 
               status: 'completed', 
-<<<<<<< HEAD
-              uploadedAt: new Date() 
-=======
               uploadedAt: new Date(),
               // 🚨 NAYA: Backend se aane wala ID save kar rahe hain (handling both camelCase and snake_case)
               cloudFileId: response.data?.fileId || response.data?.file_id || id
->>>>>>> 386dd7c (done with interpolation will add some consistency in future)
             } : f
           ),
         }));

@@ -1,10 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { InterpolationJobState, InterpolationConfig } from '../types';
 import { DEFAULT_INTERPOLATION_CONFIG } from '../constants';
-import { apiClient } from '@/lib/api-client';
-
-// SSE connection ke liye BASE_URL chahiye
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://sid385-fill-the-frames.hf.space/api/v1";
+import { interpolationClient, BASE_URL } from '@/lib/api';
 
 export function useInterpolation() {
   const [jobState, setJobState] = useState<InterpolationJobState>({
@@ -73,15 +70,15 @@ export function useInterpolation() {
 
     try {
       // 1. Backend API Call to Queue Job
-      const res = await apiClient.generateInterpolation(t0Id, t1Id, jobState.config.variable || "C13");
+      const res = await interpolationClient.generate(t0Id, t1Id, jobState.config.variable || "C13");
       
       if (!res.success) throw new Error(res.message);
 
-      const jobId = res.data.job_id;
+      const jobId = res.data.job_id || res.data.jobId;
       setJobState(prev => ({ ...prev, status: 'processing', jobId }));
 
       // 2. Open Server-Sent Events (SSE) Stream
-      const sseUrl = `${BASE_URL}/interpolation/events/${jobId}`;
+      const sseUrl = `${BASE_URL}${interpolationClient.getEventsUrl(jobId)}`;
       const eventSource = new EventSource(sseUrl);
       eventSourceRef.current = eventSource;
 
