@@ -23,7 +23,8 @@ export function VisualizationDashboard() {
     pixelData,
     handleHover,
     handleUnhover,
-    layerUrl
+    layerUrl,
+    bounds
   } = useVisualization();
 
   const viewerRef = useRef<SatelliteViewerRef>(null);
@@ -75,6 +76,7 @@ export function VisualizationDashboard() {
         <SatelliteViewer 
           ref={viewerRef}
           layerUrl={layerUrl}
+          bounds={bounds}
           data={data}
           colorMap={colorMap}
           onHover={handleHover}

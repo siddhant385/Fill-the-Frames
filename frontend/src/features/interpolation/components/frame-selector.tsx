@@ -26,7 +26,7 @@ function FramePreviewCard({ label, frame, onSelect }: FramePreviewCardProps) {
         
         <Select onValueChange={(val) => {
           const selected = completedFiles.find(f => f.cloudFileId === val);
-          if (selected) onSelect(val, selected.file.name);
+          if (selected) onSelect(val, selected.fileInfo.name);
         }}>
           <SelectTrigger className="w-full">
             <SelectValue placeholder="Select uploaded file..." />
@@ -37,7 +37,7 @@ function FramePreviewCard({ label, frame, onSelect }: FramePreviewCardProps) {
             ) : (
               completedFiles.map(file => (
                 <SelectItem key={file.cloudFileId!} value={file.cloudFileId!}>
-                  {file.file.name}
+                  {file.fileInfo.name}
                 </SelectItem>
               ))
             )}

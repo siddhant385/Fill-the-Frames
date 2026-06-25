@@ -8,8 +8,8 @@ import { UploadProgress } from './UploadProgress';
 
 export function UploadCard({ fileData }: { fileData: UploadFile }) {
   const { removeFile, uploadFileToServer } = useUploadStore();
-  const { file, status, progress, error, fileType } = fileData;
-  const fileSize = (file.size / (1024 * 1024)).toFixed(2);
+  const { fileInfo, status, progress, error, fileType } = fileData;
+  const fileSize = fileInfo ? (fileInfo.size / (1024 * 1024)).toFixed(2) : "0.00";
 
   const getStatusIcon = () => {
     switch (status) {
@@ -35,7 +35,7 @@ export function UploadCard({ fileData }: { fileData: UploadFile }) {
 
       <div className="flex-1 min-w-0">
         <div className="flex justify-between items-center mb-1">
-          <p className="text-sm font-medium truncate pr-4">{file.name}</p>
+          <p className="text-sm font-medium truncate pr-4">{fileInfo?.name || "Unknown File"}</p>
           <div className="flex items-center gap-2">
             {fileType && (
               <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-primary/10 text-primary">

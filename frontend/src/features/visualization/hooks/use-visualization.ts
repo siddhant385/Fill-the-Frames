@@ -27,6 +27,7 @@ export function useVisualization(fileIdProp?: string) {
   });
 
   const [layerUrl, setLayerUrl] = useState<string | null>(null);
+  const [bounds, setBounds] = useState<[number, number, number, number] | undefined>(undefined);
 
   useEffect(() => {
     const loadData = async () => {
@@ -47,6 +48,21 @@ export function useVisualization(fileIdProp?: string) {
         // Generate the layer image URL
         const url = visualizationClient.getLayerUrl(targetFileId, "C13", 0);
         setLayerUrl(url);
+
+        // Fetch variable bounds
+        try {
+          const boundsRes = await visualizationClient.getBounds(targetFileId);
+          if (boundsRes.success && boundsRes.data) {
+             setBounds([
+               boundsRes.data.min_lat,
+               boundsRes.data.min_lon,
+               boundsRes.data.max_lat,
+               boundsRes.data.max_lon
+             ]);
+          }
+        } catch(e) {
+          console.warn("Could not load dynamic bounds", e);
+        }
 
         // Fetch variable metadata
         const response = await visualizationClient.getVariables(targetFileId);
@@ -102,6 +118,7 @@ export function useVisualization(fileIdProp?: string) {
     pixelData,
     handleHover,
     handleUnhover,
-    layerUrl
+    layerUrl,
+    bounds
   };
 }

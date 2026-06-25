@@ -12,7 +12,7 @@ export function UploadSummary() {
   const totalFiles = files.length;
   const validFiles = files.filter(f => f.status !== 'error').length;
   const errorFiles = files.filter(f => f.status === 'error').length;
-  const totalSize = files.reduce((acc, curr) => acc + curr.file.size, 0) / (1024 * 1024);
+  const totalSize = files.reduce((acc, curr) => acc + curr.fileInfo.size, 0) / (1024 * 1024);
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
