@@ -22,7 +22,8 @@ function ResetControl({ resetTrigger, bounds }: { resetTrigger: number, bounds: 
 
 export default function LeafletMap({ url, resetTrigger, bounds }: LeafletMapProps) {
   // Real geographic bounds if available, else a rough bounding box for India as fallback
-  const mapBounds: L.LatLngBoundsExpression = bounds 
+  const isValidBounds = bounds && Array.isArray(bounds) && bounds.length === 4 && bounds.every(n => typeof n === 'number' && !isNaN(n));
+  const mapBounds: L.LatLngBoundsExpression = isValidBounds 
     ? [[bounds[0], bounds[1]], [bounds[2], bounds[3]]]
     : [[8.4, 68.7], [37.6, 97.25]];
 

@@ -47,7 +47,7 @@ export function DifferenceMapViewer({
   useEffect(() => {
     if (fileIdForBounds) {
       visualizationClient.getBounds(fileIdForBounds, variable || "C13").then(res => {
-        if (res.success && res.data) {
+        if (res.success && res.data && typeof res.data.min_lat === 'number') {
           setBoundsData([res.data.min_lat, res.data.min_lon, res.data.max_lat, res.data.max_lon]);
         }
       }).catch(console.error);
@@ -58,7 +58,8 @@ export function DifferenceMapViewer({
     ? (errorMapUrl.startsWith('http') ? errorMapUrl : `${BASE_URL}${errorMapUrl}`)
     : null;
 
-  const mapBounds: L.LatLngBoundsExpression = boundsData 
+  const isValidBounds = boundsData && Array.isArray(boundsData) && boundsData.length === 4 && boundsData.every(n => typeof n === 'number' && !isNaN(n));
+  const mapBounds: L.LatLngBoundsExpression = isValidBounds 
     ? [[boundsData[0], boundsData[1]], [boundsData[2], boundsData[3]]]
     : [[8.4, 68.7], [37.6, 97.25]];
 

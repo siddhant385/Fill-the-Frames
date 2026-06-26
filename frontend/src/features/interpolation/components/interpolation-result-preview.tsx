@@ -63,7 +63,7 @@ function PreviewWrapper({ fileId, variable }: { fileId: string, variable?: strin
 
   useEffect(() => {
     visualizationClient.getBounds(fileId, varName).then(res => {
-      if (res.success && res.data) {
+      if (res.success && res.data && typeof res.data.min_lat === 'number') {
         setBounds([res.data.min_lat, res.data.min_lon, res.data.max_lat, res.data.max_lon]);
       }
     }).catch(console.error);

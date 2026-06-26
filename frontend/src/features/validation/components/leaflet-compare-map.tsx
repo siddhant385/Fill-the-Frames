@@ -360,7 +360,8 @@ function SideBySideControl({ leftUrl, rightUrl, bounds }: { leftUrl: string, rig
 import { TileLayer } from 'react-leaflet';
 
 export default function LeafletCompareMap({ leftUrl, rightUrl, bounds }: LeafletCompareMapProps) {
-  const mapBounds: L.LatLngBoundsExpression = bounds 
+  const isValidBounds = bounds && Array.isArray(bounds) && bounds.length === 4 && bounds.every(n => typeof n === 'number' && !isNaN(n));
+  const mapBounds: L.LatLngBoundsExpression = isValidBounds 
     ? [[bounds[0], bounds[1]], [bounds[2], bounds[3]]]
     : [[8.4, 68.7], [37.6, 97.25]];
 
