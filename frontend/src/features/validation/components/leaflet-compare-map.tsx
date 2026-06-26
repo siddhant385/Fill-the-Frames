@@ -146,6 +146,7 @@ function createSideBySide() {
   }
 
   const SideBySide = L.Control.extend({
+    includes: L.Evented.prototype,
     options: {
       thumbSize: 42,
       padding: 0
