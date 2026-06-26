@@ -65,7 +65,7 @@ class VisualizationService:
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Failed to fetch file from bucket: {str(e)}")
+            logger.exception(f"Failed to fetch file from bucket: {file_id}")
             raise HTTPException(status_code=500, detail="Cloud storage retrieval failed")
     @staticmethod
     def get_variables(file_id: str) -> VariablesResponse:
@@ -93,7 +93,7 @@ class VisualizationService:
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Visualization variable request failed: {str(e)}")
+            logger.exception(f"Visualization variable request failed for {file_id}")
             raise HTTPException(status_code=500, detail="Dataset Read Failure")
         finally:
             if parser is not None:
@@ -145,7 +145,7 @@ class VisualizationService:
             }
 
         except Exception as e:
-            logger.error(f"Failed to extract bounds: {str(e)}")
+            logger.exception(f"Failed to extract bounds for {file_id}")
             # Fallback bounds if projection logic fails initially
             return {"bounds": [[8.0, 68.0], [37.0, 97.0]]}
         finally:
@@ -203,7 +203,7 @@ class VisualizationService:
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Image layer generation failed: {str(e)}")
+            logger.exception(f"Image layer generation failed for {file_id}")
             raise HTTPException(status_code=500, detail="Failed to generate map layer")
         finally:
             if parser is not None:
@@ -264,7 +264,7 @@ class VisualizationService:
             return img_byte_arr
 
         except Exception as e:
-            logger.error(f"Error map generation failed: {str(e)}")
+            logger.exception(f"Error map generation failed for {actual_file_id} vs {ai_file_id}")
             raise HTTPException(status_code=500, detail="Failed to generate error map layer")
         finally:
             if parser_actual is not None:

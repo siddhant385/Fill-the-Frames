@@ -9,7 +9,7 @@ interface OverallQualityScoreProps {
 }
 
 export function OverallQualityScore({ metrics }: OverallQualityScoreProps) {
-  const score = typeof metrics.quality_score === 'number' ? metrics.quality_score : 0;
+  const score = typeof metrics.accuracy_percentage === 'number' ? metrics.accuracy_percentage : 0;
 
   // We can calculate a color band based on the backend quality score
   let statusColor = "text-red-500";
@@ -42,7 +42,7 @@ export function OverallQualityScore({ metrics }: OverallQualityScoreProps) {
               <span className="text-5xl font-black">{score}</span>
               <span className="text-xl text-muted-foreground">/ 100</span>
             </div>
-            <p className="text-sm text-muted-foreground">{metrics.summary}</p>
+            <p className="text-sm text-muted-foreground">Accuracy based on PSNR and SSIM.</p>
           </div>
           
           <div className="flex flex-col gap-1 md:text-right">

@@ -1,5 +1,5 @@
 import { ApiResponse } from "@/types/api";
-import { FrameDataResponse } from "@/features/visualization/types";
+import { FrameDataResponse, MapBoundsResponse } from "@/features/visualization/types";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://sid385-fill-the-frames.hf.space/api/v1";
 
@@ -26,7 +26,7 @@ export const visualizationClient = {
     return response.json();
   },
 
-  getBounds: async (fileId: string, variable: string = "C13"): Promise<ApiResponse<any>> => {
+  getBounds: async (fileId: string, variable: string = "C13"): Promise<ApiResponse<MapBoundsResponse>> => {
     const response = await fetch(`${BASE_URL}/visualization/${fileId}/bounds?variable=${encodeURIComponent(variable)}`);
     if (!response.ok) {
       throw new Error(`Failed to get bounds with status ${response.status}`);

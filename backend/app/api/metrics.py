@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, HTTPException
+from loguru import logger
 
 from app.schemas.common import ApiResponse
 from app.services.scientific.metrics import MetricsService
@@ -29,7 +30,10 @@ async def compare_images(
             message="Quality metrics calculated successfully.",
             data=metrics_data,
         )
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.exception("Failed to calculate metrics")
         return ApiResponse(
             success=False, message=f"Failed to calculate metrics: {str(e)}", data=None
         )

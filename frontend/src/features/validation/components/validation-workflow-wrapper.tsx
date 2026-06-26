@@ -24,6 +24,7 @@ import { MetadataSummary } from '@/features/metadata/components/metadata-summary
 import { MetadataVariableList } from '@/features/metadata/components/metadata-variable-list';
 import { Loader2 } from 'lucide-react';
 import { visualizationClient } from '@/lib/api/visualization-client';
+import { exportClient } from '@/lib/api/export-client';
 
 const dummyDifferenceMap: DifferenceMapData = {
   id: 'dummy',
@@ -45,7 +46,7 @@ const dummyDifferenceMap: DifferenceMapData = {
 export function ValidationWorkflowWrapper() {
   const store = useValidationStore();
   const { currentStep, nextStep, prevStep, setArtifactId, setGroundTruthFileId, setGroundTruthFilename } = store;
-  const [tempArtifactId, setTempArtifactId] = useState('');
+  const [tempArtifactId, setTempArtifactId] = useState(store.artifactId || '');
   const { fetchValidationMetadata } = useMetadata();
   const { alignFrames } = useValidation();
 
@@ -219,9 +220,20 @@ export function ValidationWorkflowWrapper() {
       component: (
         <div className="space-y-6">
            <MetricsDashboard />
-           <div className="flex justify-center pt-4">
+           <div className="flex justify-center pt-4 gap-4">
             <Button variant="outline" onClick={() => console.log('Validation complete')}>
-              Complete Validation
+              Finish Session
+            </Button>
+            <Button 
+              onClick={() => {
+                const targetId = store.artifactId || store.validationPair?.generatedId;
+                if (!targetId) return;
+                const downloadUrl = exportClient.getDownloadUrl(targetId);
+                window.open(downloadUrl, "_blank");
+              }}
+              disabled={!store.artifactId && !store.validationPair}
+            >
+              Export Generated Frame (.nc)
             </Button>
           </div>
         </div>

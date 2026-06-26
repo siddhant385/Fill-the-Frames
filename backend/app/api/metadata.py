@@ -53,7 +53,7 @@ async def get_metadata(file_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to extract metadata: {str(e)}")
+        logger.exception(f"Failed to extract metadata for {file_id}")
         raise HTTPException(
             status_code=500, detail=f"Failed to extract metadata: {str(e)}"
         )

@@ -104,7 +104,7 @@ class ValidationService:
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Validation alignment failed: {str(e)}")
+            logger.exception("Validation alignment failed")
             raise HTTPException(status_code=500, detail="Failed to align frames for validation")
         finally:
             if parser_gen is not None:

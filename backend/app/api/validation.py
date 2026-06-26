@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, Body
+from loguru import logger
 from app.schemas.common import ApiResponse
 from app.schemas.validation import ValidationAlignmentRequest, ValidationAlignmentResponse
 from app.services.scientific.validation_service import ValidationService
@@ -23,6 +24,7 @@ async def align_frames(request: ValidationAlignmentRequest = Body(...)):
             data=alignment_data.model_dump(),
         )
     except Exception as e:
+        logger.exception("Failed to align frames")
         return ApiResponse(
             success=False, message=f"Failed to align frames: {str(e)}", data=None
         )

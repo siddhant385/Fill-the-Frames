@@ -68,6 +68,9 @@ class MetricsService:
                 "accuracy_percentage": round(float(ssim_val * 100), 2)
             }
 
+        except HTTPException:
+            # Re-raise HTTP exceptions (e.g. 400 Bad Request) without modification
+            raise
         except Exception as e:
-            logger.error(f"Metrics calculation failed: {str(e)}")
+            logger.exception("Metrics calculation failed unexpectedly")
             raise HTTPException(status_code=500, detail=f"Failed to calculate metrics: {str(e)}")

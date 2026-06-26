@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from app.schemas.common import ApiResponse
 
@@ -7,9 +7,16 @@ from app.schemas.common import ApiResponse
 router = APIRouter()
 
 
-@router.get("/{file_id}/sequence", response_model=ApiResponse)
+@router.get("/{file_id}/sequence")
 async def get_sequence(
     file_id: str, start_time: str = "", end_time: str = "", fps: int = 10
 ):
-    # Placeholder
-    return ApiResponse(success=True, message="Animation sequence retrieved", data=None)
+    """
+    DEPRECATED: Animation sequences are currently orchestrated on the frontend using 
+    cached interpolation workflow artifacts to avoid duplicate API requests.
+    This route is retained for future server-side animation capabilities (e.g. streaming).
+    """
+    raise HTTPException(
+        status_code=501, 
+        detail="Server-side sequence generation is not implemented. Orchestration is handled by the frontend."
+    )

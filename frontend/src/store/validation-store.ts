@@ -41,6 +41,7 @@ interface ValidationState {
   setValidationState: (state: Partial<Pick<ValidationState, 'validationPair' | 'alignedGenerated' | 'alignedGroundTruth' | 'differenceMap' | 'validationLoading' | 'validationError'>>) => void;
   setMetricsState: (state: Partial<Pick<ValidationState, 'metrics' | 'metricsLoading' | 'metricsError'>>) => void;
   setSelectedVariable: (variable: string | null) => void;
+  initializeFromInterpolation: (artifactId: string) => void;
   reset: () => void;
 }
 
@@ -80,6 +81,29 @@ export const useValidationStore = create<ValidationState>()(
       setValidationState: (newState) => set((state) => ({ ...state, ...newState })),
       setMetricsState: (newState) => set((state) => ({ ...state, ...newState })),
       setSelectedVariable: (variable) => set({ selectedVariable: variable }),
+      initializeFromInterpolation: (artifactId: string) => {
+        // Reset everything first, then set the specific artifact ID
+        set({
+          currentStep: 1,
+          artifactId: artifactId,
+          groundTruthFileId: null,
+          groundTruthFilename: null,
+          selectedVariable: null,
+          metricsComputed: false,
+          groundTruthMetadata: null,
+          metadataLoading: false,
+          metadataError: null,
+          validationPair: null,
+          alignedGenerated: null,
+          alignedGroundTruth: null,
+          differenceMap: null,
+          validationLoading: false,
+          validationError: null,
+          metrics: null,
+          metricsLoading: false,
+          metricsError: null,
+        });
+      },
       reset: () => set({
         currentStep: 1,
         artifactId: null,

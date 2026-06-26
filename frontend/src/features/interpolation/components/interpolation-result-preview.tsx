@@ -40,6 +40,18 @@ export function InterpolationResultPreview({ jobState }: InterpolationResultPrev
               <span className="text-sm font-medium">{jobState.config.timeRatio.toFixed(2)}</span>
             </div>
             <div className="flex flex-col gap-1">
+              <span className="text-xs text-muted-foreground uppercase tracking-wider">Artifact ID</span>
+              <div className="flex items-center justify-between bg-background p-2 rounded border">
+                <span className="text-xs font-mono truncate mr-2">{jobState.outputFileId}</span>
+                <button 
+                  onClick={() => navigator.clipboard.writeText(jobState.outputFileId || '')}
+                  className="text-xs text-primary hover:underline whitespace-nowrap"
+                >
+                  Copy
+                </button>
+              </div>
+            </div>
+            <div className="flex flex-col gap-1">
               <span className="text-xs text-muted-foreground uppercase tracking-wider">Variable Generated</span>
               <span className="text-sm font-medium">{jobState.config.variable || 'C13'}</span>
             </div>

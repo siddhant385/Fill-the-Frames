@@ -10,17 +10,15 @@ interface MetricsChartsProps {
 }
 
 export function MetricsCharts({ metrics }: MetricsChartsProps) {
-  // Filter metrics that map cleanly to a 0-1 radar chart (Structural/Information)
+  // Filter metrics that map cleanly to a 0-1 radar chart
   const radarData = [
-    { subject: 'SSIM', A: typeof metrics.ssim === 'number' ? metrics.ssim : 0, fullMark: 1.0 }
+    { subject: 'SSIM', A: typeof metrics.ssim === 'number' ? metrics.ssim : 0, fullMark: 1.0 },
+    { subject: 'Accuracy', A: typeof metrics.accuracy_percentage === 'number' ? metrics.accuracy_percentage / 100 : 0, fullMark: 1.0 }
   ];
-  if (typeof metrics.fsim === 'number') radarData.push({ subject: 'FSIM', A: metrics.fsim, fullMark: 1.0 });
-  if (typeof metrics.issm === 'number') radarData.push({ subject: 'ISSM', A: metrics.issm, fullMark: 1.0 });
 
-  // Filter signal metrics (PSNR, MSE) for a bar chart
+  // Filter signal metrics (PSNR) for a bar chart
   const barData = [
-    { name: 'PSNR (dB)', value: typeof metrics.psnr === 'number' ? metrics.psnr : 0, statusColor: '#3b82f6' },
-    { name: 'MSE', value: typeof metrics.mse === 'number' ? metrics.mse : 0, statusColor: '#ef4444' }
+    { name: 'PSNR (dB)', value: typeof metrics.psnr_db === 'number' ? metrics.psnr_db : 0, statusColor: '#3b82f6' }
   ];
 
   return (

@@ -1,6 +1,5 @@
 from pydantic import BaseModel
 from typing import List, Dict
-from .visualization import FrameDataResponse
 
 class MetricsRequest(BaseModel):
     frame_a_id: str
@@ -8,5 +7,6 @@ class MetricsRequest(BaseModel):
     metrics: List[str]
 
 class MetricsResponse(BaseModel):
-    scores: Dict[str, float]
-    difference_map: FrameDataResponse
+    psnr_db: float
+    ssim: float
+    accuracy_percentage: float

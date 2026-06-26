@@ -21,13 +21,9 @@ export interface ValidationAlignmentResponse {
 }
 
 export interface MetricsResponse {
+  psnr_db: number;
   ssim: number;
-  psnr: number;
-  mse: number;
-  fsim: number | null;
-  issm: number | null;
-  quality_score: number;
-  summary: string;
+  accuracy_percentage: number;
 }
 
 export const validationClient = {
