@@ -35,6 +35,8 @@ async def health_gpu(request: Request):
         data={"cuda_available": cuda_available}
     )
 
+from app.services.inference.model_loader import ModelLoader
+
 @router.get("/models", response_model=ApiResponse)
 async def health_models(request: Request):
     """Checks if the heavy ONNX models are loaded into RAM."""
@@ -44,5 +46,8 @@ async def health_models(request: Request):
     return ApiResponse(
         success=True, 
         message="Models status retrieved", 
-        data={"rife": rife_status}
+        data={
+            "rife": rife_status,
+            "model_name": ModelLoader.get_model_name()
+        }
     )

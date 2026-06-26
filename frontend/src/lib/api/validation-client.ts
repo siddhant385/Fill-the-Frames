@@ -32,4 +32,4 @@ export const validationClient = {
     const json = await response.json();
     return json.data as MetricsResponse; // Because backend returns ApiResponse wrapper
   },
-};
+};
