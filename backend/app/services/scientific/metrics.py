@@ -61,19 +61,55 @@ class MetricsService:
                 & ~np.isinf(img_gen)
             )
 
-            img_truth_clean = np.where(valid_mask, img_truth, 90.0)
-            img_gen_clean = np.where(valid_mask, img_gen, 90.0)
+            # Prevent division by zero if entire image is invalid
+            if not np.any(valid_mask):
+                raise HTTPException(
+                    status_code=400,
+                    detail="No valid pixels found in the datasets for comparison.",
+                )
+
+            # Calculate MSE strictly on valid pixels
+            mse_val = np.mean((img_truth[valid_mask] - img_gen[valid_mask]) ** 2)
+
+            # skimage PSNR and SSIM require full rectangular 2D arrays, they don't support boolean masks natively.
+            # To prevent the massive black space (-9999 or NaN) from artificially boosting SSIM to 0.99+,
+            # we isolate the bounding box of valid data.
+            coords = np.argwhere(valid_mask)
+            y_min, x_min = coords.min(axis=0)
+            y_max, x_max = coords.max(axis=0) + 1
+
+            img_truth_cropped = img_truth[y_min:y_max, x_min:x_max]
+            img_gen_cropped = img_gen[y_min:y_max, x_min:x_max]
+            valid_mask_cropped = valid_mask[y_min:y_max, x_min:x_max]
+
+            # Replace remaining internal NaNs with the mean of the valid pixels to minimize SSIM distortion
+            fill_value = np.mean(img_truth_cropped[valid_mask_cropped])
+            img_truth_clean = np.where(
+                valid_mask_cropped, img_truth_cropped, fill_value
+            )
+            img_gen_clean = np.where(valid_mask_cropped, img_gen_cropped, fill_value)
+
+            # Set dynamic data range
+            is_thermal = not (
+                "VIS" in variable.upper()
+                or "REF" in variable.upper()
+                or "ALBEDO" in variable.upper()
+            )
+            if is_thermal:
+                data_range = 313.0 - 90.0
+            else:
+                max_actual = np.nanmax(img_truth_clean)
+                data_range = 1.0 if max_actual <= 1.5 else 100.0
 
             logger.info("Running SSIM and PSNR equations...")
 
             # 6. Calculate Metrics
-            psnr_val = psnr(
-                img_truth_clean, img_gen_clean, data_range=MetricsService.DATA_RANGE
-            )
-            ssim_val = ssim(
-                img_truth_clean, img_gen_clean, data_range=MetricsService.DATA_RANGE
-            )
-            mse_val = np.mean((img_truth_clean - img_gen_clean) ** 2)
+            if mse_val == 0:
+                psnr_val = 100.0  # Perfect match
+            else:
+                psnr_val = 20 * np.log10(data_range) - 10 * np.log10(mse_val)
+
+            ssim_val = ssim(img_truth_clean, img_gen_clean, data_range=data_range)
             quality_score = max(0, min(100, float(ssim_val * 100)))
 
             # Result formatting

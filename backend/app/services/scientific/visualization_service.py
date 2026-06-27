@@ -271,14 +271,11 @@ class VisualizationService:
 
                         area_extent = (west, south, east, north)
                         target_area = create_area_def(
-                            "leaflet_grid",
-                            "EPSG:4326",
-                            "leaflet_grid",
-                            "leaflet_grid",
-                            "WGS84",
-                            width,
-                            height,
-                            area_extent,
+                            area_id="leaflet_grid",
+                            projection="EPSG:4326",
+                            width=width,
+                            height=height,
+                            area_extent=area_extent,
                         )
 
                         logger.info(
@@ -307,9 +304,13 @@ class VisualizationService:
                 or "REF" in variable.upper()
                 or "ALBEDO" in variable.upper()
             ):
-                MIN_VAL, MAX_VAL = 0.0, 100.0  # Reflectance percentages
                 is_thermal = False
                 valid_mask = ~np.isnan(frame) & ~np.isinf(frame)
+                max_frame_val = (
+                    np.nanmax(frame[valid_mask]) if np.any(valid_mask) else 1.0
+                )
+                MIN_VAL = 0.0
+                MAX_VAL = 1.0 if max_frame_val <= 1.5 else 100.0
             else:
                 MIN_VAL, MAX_VAL = 190.0, 313.0  # Brightness Temperatures (Kelvin)
                 is_thermal = True
@@ -418,14 +419,11 @@ class VisualizationService:
 
                         area_extent = (west, south, east, north)
                         target_area = create_area_def(
-                            "leaflet_grid",
-                            "EPSG:4326",
-                            "leaflet_grid",
-                            "leaflet_grid",
-                            "WGS84",
-                            width,
-                            height,
-                            area_extent,
+                            area_id="leaflet_grid",
+                            projection="EPSG:4326",
+                            width=width,
+                            height=height,
+                            area_extent=area_extent,
                         )
 
                         logger.info(
@@ -493,8 +491,17 @@ class VisualizationService:
             error_matrix = np.zeros_like(frame_actual)
             np.abs(frame_actual - frame_ai, out=error_matrix, where=valid_mask)
 
-            # 3. Normalize Error (Assuming 20 Kelvin difference is our max acceptable threshold)
-            MAX_ERROR = 20.0
+            # 3. Normalize Error (Dynamic based on variable type)
+            if is_thermal:
+                MAX_ERROR = 20.0
+            else:
+                max_actual = (
+                    np.nanmax(frame_actual[valid_mask_actual])
+                    if np.any(valid_mask_actual)
+                    else 1.0
+                )
+                MAX_ERROR = 0.2 if max_actual <= 1.5 else 20.0
+
             error_norm = np.clip(error_matrix / MAX_ERROR, 0, 1)
 
             # 4. Create RGBA image mapping (Yellow -> Red gradient)
