@@ -40,7 +40,7 @@ export function MetricsComparisonTable({ metrics }: MetricsComparisonTableProps)
                     {metric.category}
                   </Badge>
                 </TableCell>
-                <TableCell className="font-mono">{metric.value.toFixed(3)}</TableCell>
+                <TableCell className="font-mono">{typeof metric.value === 'number' ? metric.value.toFixed(3) : "N/A"}</TableCell>
                 <TableCell>
                   <span className={cn("text-xs font-semibold uppercase tracking-wider", STATUS_COLORS[metric.status])}>
                     {metric.status}

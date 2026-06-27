@@ -1,83 +1,47 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { ExportJob, ExportOptions } from "../types";
 import { DEFAULT_EXPORT_OPTIONS } from "../constants";
-import { MOCK_EXPORT_HISTORY } from "../mock/data";
+import { exportClient } from "@/lib/api/export-client";
+import { useInterpolationStore } from "@/store/interpolation-store";
+import { useValidationStore } from "@/store/validation-store";
 
 export function useExport() {
   const [options, setOptions] = useState<ExportOptions>(DEFAULT_EXPORT_OPTIONS);
-  const [jobs, setJobs] = useState<ExportJob[]>(MOCK_EXPORT_HISTORY);
-  
-  const timerRefs = useRef<Record<string, NodeJS.Timeout>>({});
+  const [jobs, setJobs] = useState<ExportJob[]>([]);
+  const interpolationStore = useInterpolationStore();
+  const validationStore = useValidationStore();
 
   const startExport = useCallback(() => {
-    const newJobId = `job-${Date.now()}`;
+    let targetFileId = interpolationStore.outputFileId || validationStore.artifactId;
     
+    if (!targetFileId) {
+      const userInput = window.prompt("No generated file detected in session. Enter the File/Artifact ID you wish to download:");
+      if (!userInput) return;
+      targetFileId = userInput;
+    }
+    
+    const newJobId = `job-${Date.now()}`;
+    const downloadUrl = exportClient.getDownloadUrl(targetFileId);
+
     const newJob: ExportJob = {
       id: newJobId,
       format: options.format,
-      status: "preparing",
-      progress: 0,
+      status: "completed",
+      progress: 100,
       createdAt: new Date().toISOString(),
+      completedAt: new Date().toISOString(),
+      downloadUrl: downloadUrl,
+      fileSize: "Unknown" 
     };
 
     setJobs((prev) => [newJob, ...prev]);
 
-    // Simulate export progress
-    let currentProgress = 0;
-    
-    const timer = setInterval(() => {
-      currentProgress += Math.random() * 15; // Random jump between 0 and 15%
-      
-      if (currentProgress >= 100) {
-        currentProgress = 100;
-        clearInterval(timerRefs.current[newJobId]);
-        delete timerRefs.current[newJobId];
-        
-        setJobs((prev) => 
-          prev.map((job) => 
-            job.id === newJobId 
-              ? { 
-                  ...job, 
-                  status: "completed", 
-                  progress: 100, 
-                  completedAt: new Date().toISOString(),
-                  downloadUrl: `https://mock-download.example.com/export_${Date.now()}.${options.format.toLowerCase()}`,
-                  fileSize: `${(Math.random() * 50 + 5).toFixed(1)} MB`
-                } 
-              : job
-          )
-        );
-      } else {
-        setJobs((prev) => 
-          prev.map((job) => 
-            job.id === newJobId 
-              ? { 
-                  ...job, 
-                  status: currentProgress > 10 ? "exporting" : "preparing", 
-                  progress: currentProgress 
-                } 
-              : job
-          )
-        );
-      }
-    }, 1000);
-
-    timerRefs.current[newJobId] = timer;
-  }, [options]);
+    // Open download directly
+    window.open(downloadUrl, "_blank");
+  }, [options, interpolationStore.outputFileId, validationStore.artifactId]);
 
   const cancelExport = useCallback((jobId: string) => {
-    if (timerRefs.current[jobId]) {
-      clearInterval(timerRefs.current[jobId]);
-      delete timerRefs.current[jobId];
-      
-      setJobs((prev) => 
-        prev.map((job) => 
-          job.id === jobId 
-            ? { ...job, status: "error", progress: job.progress } 
-            : job
-        )
-      );
-    }
+    // Not applicable since it's instant
   }, []);
 
   const updateOptions = useCallback((newOptions: Partial<ExportOptions>) => {

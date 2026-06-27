@@ -5,7 +5,11 @@ import { useComparison } from '../hooks/use-comparison';
 import { ComparisonSummary } from './comparison-summary';
 import { ComparisonToolbar } from './comparison-toolbar';
 import { ComparisonGrid } from './comparison-grid';
-import { DifferenceMapViewer } from './difference-map-viewer';
+import dynamic from 'next/dynamic';
+const DifferenceMapViewer = dynamic(
+  () => import('./difference-map-viewer').then(mod => mod.DifferenceMapViewer),
+  { ssr: false, loading: () => <div className="w-full h-[500px] flex items-center justify-center animate-pulse bg-muted">Loading map...</div> }
+);
 import { DifferenceStatistics } from './difference-statistics';
 import { ComparisonInsights } from './comparison-insights';
 import { MetricsPreview } from './metrics-preview';
@@ -48,9 +52,9 @@ export function ComparisonDashboard() {
         {mode === 'difference-map' ? (
           <DifferenceMapViewer 
             differenceMap={differenceMap}
-            sharedLayout={sharedLayout}
-            onRelayout={handleRelayout}
             isFullscreen={isFullscreen}
+            // Ideally we pass fileId here, but comparison dashboard is generic.
+            // If it doesn't have a fileId, it will default to India bounds.
           />
         ) : (
           <ComparisonGrid 
