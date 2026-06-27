@@ -29,10 +29,12 @@ export default function LeafletMap({ url, resetTrigger, bounds }: LeafletMapProp
 
   return (
     <MapContainer 
-      bounds={mapBounds} 
+      bounds={mapBounds}
+      maxBounds={mapBounds}
+      maxBoundsViscosity={1.0}
       className="w-full h-full z-0 bg-[#0a0a0a]"
       zoomControl={true}
-      minZoom={2}
+      minZoom={3}
       maxZoom={10}
       style={{ height: '100%', width: '100%', minHeight: '400px' }}
     >

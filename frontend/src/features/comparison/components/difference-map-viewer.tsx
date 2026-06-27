@@ -73,9 +73,11 @@ export function DifferenceMapViewer({
       {fullUrl ? (
         <MapContainer
           bounds={mapBounds}
+          maxBounds={mapBounds}
+          maxBoundsViscosity={1.0}
           className="flex-1 w-full z-0 bg-[#0a0a0a]"
           zoomControl={true}
-          minZoom={2}
+          minZoom={3}
           maxZoom={10}
           style={{ height: '100%', width: '100%' }}
         >
