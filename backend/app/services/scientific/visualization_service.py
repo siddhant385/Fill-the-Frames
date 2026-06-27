@@ -176,7 +176,9 @@ class VisualizationService:
                 # Default bounds for India/Subcontinent as fallback
                 return {"bounds": [[8.0, 68.0], [37.0, 97.0]]}
 
+            # Optimization: Downsample lat/lon extraction to avoid massive memory usage on full-disk arrays
             lons, lats = area.get_lonlats()
+            lons, lats = lons[::10, ::10], lats[::10, ::10]
 
             # FIX: Filter out deep space Infinity and NaN values
             valid_mask = (
@@ -207,8 +209,21 @@ class VisualizationService:
     def get_map_layer_image(file_id: str, variable: str) -> io.BytesIO:
         """
         Converts the 2D scientific array into a transparent PNG for Map Overlay.
+        Optimized with caching, bilinear resampling, and dynamic normalization.
         """
         file_path = VisualizationService._get_file_path(file_id)
+
+        # Optimization: Check if we already rendered this specific PNG before doing heavy math
+        local_cache_dir = Path(TEMP_STORAGE_DIR) / file_id
+        png_cache_path = local_cache_dir / f"{variable}_map.png"
+
+        if png_cache_path.exists():
+            logger.info(f"Serving {variable} map overlay from cache for {file_id}")
+            with open(png_cache_path, "rb") as f:
+                img_byte_arr = io.BytesIO(f.read())
+                img_byte_arr.seek(0)
+                return img_byte_arr
+
         parser = None
         try:
             parser = MetadataService.get_parser(file_path)
@@ -223,25 +238,37 @@ class VisualizationService:
                 try:
                     area = parser.scene[variable].attrs.get("area")
                     if area:
-                        lons, lats = area.get_lonlats()
+                        # Downsample lonlats strictly for bounding box computation to save memory
+                        lons_sub, lats_sub = area.get_lonlats()
+                        lons_sub, lats_sub = lons_sub[::20, ::20], lats_sub[::20, ::20]
                         valid_mask = (
-                            ~np.isnan(lats)
-                            & ~np.isnan(lons)
-                            & ~np.isinf(lats)
-                            & ~np.isinf(lons)
+                            ~np.isnan(lats_sub)
+                            & ~np.isnan(lons_sub)
+                            & ~np.isinf(lats_sub)
+                            & ~np.isinf(lons_sub)
                         )
                         south, north = (
-                            float(np.min(lats[valid_mask])),
-                            float(np.max(lats[valid_mask])),
+                            float(np.min(lats_sub[valid_mask])),
+                            float(np.max(lats_sub[valid_mask])),
                         )
                         west, east = (
-                            float(np.min(lons[valid_mask])),
-                            float(np.max(lons[valid_mask])),
+                            float(np.min(lons_sub[valid_mask])),
+                            float(np.max(lons_sub[valid_mask])),
                         )
 
                         from pyresample.geometry import create_area_def
 
-                        # Define a 1000x1000 geographic grid covering the exact bounding box
+                        # Dynamic native resolution mapping (prevent 1000x1000 hardcoded pixelation)
+                        height, width = (
+                            area.shape if hasattr(area, "shape") else (1000, 1000)
+                        )
+
+                        # Cap max resolution to prevent browser crash, but keep it high-def
+                        max_dim = 2500
+                        if width > max_dim or height > max_dim:
+                            scale = max_dim / max(width, height)
+                            width, height = int(width * scale), int(height * scale)
+
                         area_extent = (west, south, east, north)
                         target_area = create_area_def(
                             "leaflet_grid",
@@ -249,45 +276,55 @@ class VisualizationService:
                             "leaflet_grid",
                             "leaflet_grid",
                             "WGS84",
-                            1000,
-                            1000,
+                            width,
+                            height,
                             area_extent,
                         )
 
                         logger.info(
-                            "Reprojecting Geostationary data to Equirectangular EPSG:4326 for Leaflet map..."
+                            f"Reprojecting to EPSG:4326 ({width}x{height}) via Bilinear interpolation..."
                         )
                         resampled_scene = parser.scene.resample(
-                            target_area, resampler="nearest"
+                            target_area, resampler="bilinear"
                         )
                         frame = resampled_scene[variable].values.astype(np.float32)
                     else:
-                        frame = parser.extract_time_slice(variable, 0)
+                        frame = parser.extract_time_slice(variable, 0).astype(
+                            np.float32
+                        )
                 except Exception as e:
                     logger.warning(
                         f"Reprojection failed, falling back to raw array: {str(e)}"
                     )
-                    frame = parser.extract_time_slice(variable, 0)
+                    frame = parser.extract_time_slice(variable, 0).astype(np.float32)
             else:
                 # Extract 2D array matrix directly for AI files or if scene doesn't exist
-                frame = parser.extract_time_slice(variable, 0)
+                frame = parser.extract_time_slice(variable, 0).astype(np.float32)
 
-            # Downsample optimization for extremely fast web renders
-            frame = frame[::2, ::2]
+            # Dynamic Variable Normalization
+            if (
+                "VIS" in variable.upper()
+                or "REF" in variable.upper()
+                or "ALBEDO" in variable.upper()
+            ):
+                MIN_VAL, MAX_VAL = 0.0, 100.0  # Reflectance percentages
+                is_thermal = False
+                valid_mask = ~np.isnan(frame) & ~np.isinf(frame)
+            else:
+                MIN_VAL, MAX_VAL = 190.0, 313.0  # Brightness Temperatures (Kelvin)
+                is_thermal = True
+                valid_mask = (
+                    ~np.isnan(frame)
+                    & ~np.isinf(frame)
+                    & (frame > 50.0)
+                    & (frame < 400.0)
+                )
 
-            # FIX: Brightness temperature > 50 and < 400. Eliminates space fill-values (-9999, 0, etc.)
-            valid_mask = (
-                ~np.isnan(frame) & ~np.isinf(frame) & (frame > 50.0) & (frame < 400.0)
-            )
-            frame_clean = np.where(valid_mask, frame, 90.0)
+            frame_clean = np.where(valid_mask, frame, MIN_VAL)
 
-            # Normalize Brightness Temperature to 0-255 range
-            MIN_BT = 90.0
-            MAX_BT = 313.0
-
-            # Invert: Cold temperatures (clouds) become 255, Warm temperatures (land/ocean) become 0
-            frame_norm = 255 - np.clip(
-                (frame_clean - MIN_BT) / (MAX_BT - MIN_BT) * 255, 0, 255
+            # Normalize to 0-255 range
+            frame_norm = np.clip(
+                (frame_clean - MIN_VAL) / (MAX_VAL - MIN_VAL) * 255, 0, 255
             ).astype(np.uint8)
 
             # Create RGBA image matrix
@@ -295,20 +332,29 @@ class VisualizationService:
                 (frame_norm.shape[0], frame_norm.shape[1], 4), dtype=np.uint8
             )
 
-            # Set RGB to pure white for clouds
-            rgba_img[..., 0] = 255  # Red
-            rgba_img[..., 1] = 255  # Green
-            rgba_img[..., 2] = 255  # Blue
-
-            # Set Alpha (Transparency) based on temperature
-            # Cold clouds are opaque (255), warm land is transparent (0)
-            # NaNs and empty space are also forced to transparent (0)
-            rgba_img[..., 3] = np.where(valid_mask, frame_norm, 0)
+            if is_thermal:
+                # Invert: Cold temperatures (clouds) become 255, Warm temperatures (land/ocean) become 0
+                frame_norm = 255 - frame_norm
+                # Set RGB to pure white for clouds
+                rgba_img[..., 0] = 255
+                rgba_img[..., 1] = 255
+                rgba_img[..., 2] = 255
+                # Opacity matches cloud coldness
+                rgba_img[..., 3] = np.where(valid_mask, frame_norm, 0)
+            else:
+                # Visible mapping: Grayscale with full opacity where data exists
+                rgba_img[..., 0] = frame_norm
+                rgba_img[..., 1] = frame_norm
+                rgba_img[..., 2] = frame_norm
+                rgba_img[..., 3] = np.where(valid_mask, 255, 0)
 
             # Convert array to PIL Image
             img = Image.fromarray(rgba_img, mode="RGBA")
 
-            # Save to in-memory byte buffer
+            # Save to disk cache for future rapid fetching
+            img.save(png_cache_path, format="PNG", optimize=True)
+
+            # Save to in-memory byte buffer to return instantly
             img_byte_arr = io.BytesIO()
             img.save(img_byte_arr, format="PNG", optimize=True)
             img_byte_arr.seek(0)
@@ -342,23 +388,33 @@ class VisualizationService:
                 try:
                     area = parser.scene[variable].attrs.get("area")
                     if area:
-                        lons, lats = area.get_lonlats()
+                        # Downsample lonlats strictly for memory safety
+                        lons_sub, lats_sub = area.get_lonlats()
+                        lons_sub, lats_sub = lons_sub[::20, ::20], lats_sub[::20, ::20]
                         valid_mask = (
-                            ~np.isnan(lats)
-                            & ~np.isnan(lons)
-                            & ~np.isinf(lats)
-                            & ~np.isinf(lons)
+                            ~np.isnan(lats_sub)
+                            & ~np.isnan(lons_sub)
+                            & ~np.isinf(lats_sub)
+                            & ~np.isinf(lons_sub)
                         )
                         south, north = (
-                            float(np.min(lats[valid_mask])),
-                            float(np.max(lats[valid_mask])),
+                            float(np.min(lats_sub[valid_mask])),
+                            float(np.max(lats_sub[valid_mask])),
                         )
                         west, east = (
-                            float(np.min(lons[valid_mask])),
-                            float(np.max(lons[valid_mask])),
+                            float(np.min(lons_sub[valid_mask])),
+                            float(np.max(lons_sub[valid_mask])),
                         )
 
                         from pyresample.geometry import create_area_def
+
+                        height, width = (
+                            area.shape if hasattr(area, "shape") else (1000, 1000)
+                        )
+                        max_dim = 1500  # Smaller max_dim for error map to ensure fast comparisons
+                        if width > max_dim or height > max_dim:
+                            scale = max_dim / max(width, height)
+                            width, height = int(width * scale), int(height * scale)
 
                         area_extent = (west, south, east, north)
                         target_area = create_area_def(
@@ -367,21 +423,21 @@ class VisualizationService:
                             "leaflet_grid",
                             "leaflet_grid",
                             "WGS84",
-                            1000,
-                            1000,
+                            width,
+                            height,
                             area_extent,
                         )
 
                         logger.info(
-                            "Reprojecting Geostationary data for Error Map overlay..."
+                            "Reprojecting Geostationary data for Error Map overlay via Bilinear..."
                         )
                         resampled_scene = parser.scene.resample(
-                            target_area, resampler="nearest"
+                            target_area, resampler="bilinear"
                         )
                         return resampled_scene[variable].values.astype(np.float32)
                 except Exception as e:
                     logger.warning(f"Error map reprojection failed: {str(e)}")
-            return parser.extract_time_slice(variable, 0)
+            return parser.extract_time_slice(variable, 0).astype(np.float32)
 
         parser_actual = None
         parser_ai = None
@@ -389,26 +445,48 @@ class VisualizationService:
             parser_actual = MetadataService.get_parser(actual_path)
             parser_actual.load_dataset(actual_path)
             VisualizationService.validate_variable(parser_actual, variable)
-            frame_actual = get_frame_matrix(parser_actual, True)[::2, ::2]
+            frame_actual = get_frame_matrix(parser_actual, True)
 
             parser_ai = MetadataService.get_parser(ai_path)
             parser_ai.load_dataset(ai_path)
             VisualizationService.validate_variable(parser_ai, variable)
-            frame_ai = get_frame_matrix(parser_ai, False)[::2, ::2]
+            frame_ai = get_frame_matrix(parser_ai, False)
+
+            # Ensure shapes strictly match (AI frame might skip reprojection if it lacks a scene)
+            if frame_actual.shape != frame_ai.shape:
+                logger.warning(
+                    f"Shape mismatch: Actual {frame_actual.shape} vs AI {frame_ai.shape}. Resizing AI frame..."
+                )
+                img_ai = Image.fromarray(frame_ai)
+                img_ai = img_ai.resize(
+                    (frame_actual.shape[1], frame_actual.shape[0]), Image.BILINEAR
+                )
+                frame_ai = np.array(img_ai)
 
             # 1. Validation masks
-            valid_mask_actual = (
-                ~np.isnan(frame_actual)
-                & ~np.isinf(frame_actual)
-                & (frame_actual > 50.0)
-                & (frame_actual < 400.0)
+            is_thermal = not (
+                "VIS" in variable.upper()
+                or "REF" in variable.upper()
+                or "ALBEDO" in variable.upper()
             )
-            valid_mask_ai = (
-                ~np.isnan(frame_ai)
-                & ~np.isinf(frame_ai)
-                & (frame_ai > 50.0)
-                & (frame_ai < 400.0)
-            )
+
+            if is_thermal:
+                valid_mask_actual = (
+                    ~np.isnan(frame_actual)
+                    & ~np.isinf(frame_actual)
+                    & (frame_actual > 50.0)
+                    & (frame_actual < 400.0)
+                )
+                valid_mask_ai = (
+                    ~np.isnan(frame_ai)
+                    & ~np.isinf(frame_ai)
+                    & (frame_ai > 50.0)
+                    & (frame_ai < 400.0)
+                )
+            else:
+                valid_mask_actual = ~np.isnan(frame_actual) & ~np.isinf(frame_actual)
+                valid_mask_ai = ~np.isnan(frame_ai) & ~np.isinf(frame_ai)
+
             valid_mask = valid_mask_actual & valid_mask_ai  # Data valid in both
 
             # 2. Calculate Absolute Error Map
