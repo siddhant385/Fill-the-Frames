@@ -2,10 +2,13 @@ import asyncio
 import json
 import uuid
 from typing import Any, Dict
+from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Form, HTTPException
 from fastapi.responses import StreamingResponse
+from huggingface_hub import HfFileSystem
 
+from app.core.config import HF_BUCKET_ID, HF_TOKEN
 from app.schemas.common import ApiResponse
 from app.schemas.interpolation import (
     InterpolationRequest,
@@ -15,6 +18,7 @@ from app.schemas.interpolation import (
 from app.services.inference.interpolation_service import InterpolationService
 
 router = APIRouter()
+fs = HfFileSystem(token=HF_TOKEN)
 
 # In-memory Database for job tracking
 JOB_STORE: Dict[str, Dict[str, Any]] = {}
@@ -108,3 +112,45 @@ async def get_events(job_id: str):
             await asyncio.sleep(2)
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+@router.get("/list", response_model=ApiResponse)
+async def list_interpolated_files():
+    """
+    Get a list of all interpolated dataset folders and their sizes from Hugging Face.
+    """
+    try:
+        bucket_path = f"hf://buckets/{HF_BUCKET_ID}/interpolations/"
+        if not fs.exists(bucket_path):
+            return ApiResponse(success=True, message="No files generated yet", data=[])
+
+        folders = fs.ls(bucket_path, detail=False)
+        files_info = []
+
+        for folder_path in folders:
+            folder_name = Path(folder_path).name  # The UUID
+            inner_files = fs.glob(f"{folder_path}/*")
+
+            if inner_files:
+                actual_file = inner_files[0]
+                file_metadata = fs.info(actual_file)
+
+                files_info.append(
+                    {
+                        "fileId": folder_name,
+                        "filename": Path(actual_file).name,
+                        "size_bytes": file_metadata.get("size", 0),
+                    }
+                )
+
+        return ApiResponse(
+            success=True,
+            message="Files retrieved successfully",
+            data=files_info,
+        )
+    except Exception as e:
+        return ApiResponse(
+            success=False,
+            message=f"Failed to list interpolated files: {str(e)}",
+            data=[],
+        )

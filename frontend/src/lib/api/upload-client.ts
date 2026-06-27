@@ -9,20 +9,42 @@ export interface UploadResponse {
 }
 
 export const uploadClient = {
-  uploadFile: async (file: File): Promise<ApiResponse<UploadResponse>> => {
-    const formData = new FormData();
-    formData.append("file", file);
+  uploadFile: async (file: File, onProgress?: (percent: number) => void): Promise<ApiResponse<UploadResponse>> => {
+    return new Promise((resolve, reject) => {
+      const formData = new FormData();
+      formData.append("file", file);
 
-    const response = await fetch(`${BASE_URL}/upload/`, {
-      method: "POST",
-      // headers: { "Authorization": `Bearer ${process.env.NEXT_PUBLIC_HF_TOKEN}` },
-      body: formData,
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", `${BASE_URL}/upload/`, true);
+
+      if (onProgress) {
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const percentComplete = Math.round((event.loaded / event.total) * 100);
+            onProgress(percentComplete);
+          }
+        };
+      }
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            resolve(JSON.parse(xhr.responseText));
+          } catch (e) {
+            reject(new Error("Invalid JSON response"));
+          }
+        } else {
+          try {
+            const errRes = JSON.parse(xhr.responseText);
+            reject(new Error(errRes.message || `Upload failed with status ${xhr.status}`));
+          } catch(e) {
+            reject(new Error(`Upload failed with status ${xhr.status}`));
+          }
+        }
+      };
+
+      xhr.onerror = () => reject(new Error("Network error during upload"));
+      xhr.send(formData);
     });
-
-    if (!response.ok) {
-      throw new Error(`Upload failed with status ${response.status}`);
-    }
-
-    return response.json();
   },
 };

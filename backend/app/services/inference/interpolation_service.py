@@ -71,7 +71,9 @@ class InterpolationService:
             local_result_dir = Path(TEMP_STORAGE_DIR) / result_file_id
             local_result_dir.mkdir(parents=True, exist_ok=True)
 
-            output_name = f"Interpolated_AI_{result_file_id}.nc"
+            # Preserve original filename prefix so SatPy regex matching has a better chance of working locally
+            original_filename = Path(path_1).stem
+            output_name = f"{original_filename}_Interpolated_AI_{result_file_id}.nc"
             local_output_path = local_result_dir / output_name
 
             # Save locally to /tmp first

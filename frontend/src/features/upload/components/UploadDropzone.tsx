@@ -9,6 +9,7 @@ import { Loader2, File, CheckCircle2, AlertCircle } from 'lucide-react';
 
 export function UploadDropzone({ onUploadComplete }: { onUploadComplete?: (fileId: string, filename: string) => void }) {
   const [isUploading, setIsUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [uploadingFilename, setUploadingFilename] = useState<string | null>(null);
@@ -18,14 +19,16 @@ export function UploadDropzone({ onUploadComplete }: { onUploadComplete?: (fileI
       const file = acceptedFiles[0];
       setUploadingFilename(file.name);
       setIsUploading(true);
+      setProgress(0);
       setError(null);
       setSuccess(false);
 
       try {
-        const response = await uploadClient.uploadFile(file);
+        const response = await uploadClient.uploadFile(file, (percent) => setProgress(percent));
         
         if (response.success && response.data) {
           setSuccess(true);
+          setProgress(100);
           if (onUploadComplete) {
             onUploadComplete(response.data.fileId, response.data.filename);
           }
@@ -67,9 +70,13 @@ export function UploadDropzone({ onUploadComplete }: { onUploadComplete?: (fileI
       )}
 
       {isUploading && (
-        <div className="flex flex-col items-center justify-center space-y-4">
+        <div className="flex flex-col items-center justify-center space-y-4 w-full max-w-xs px-8">
           <Loader2 className="w-12 h-12 text-primary animate-spin" />
-          <p className="text-sm font-medium text-muted-foreground">Uploading {uploadingFilename}...</p>
+          <p className="text-sm font-medium text-muted-foreground text-center">Uploading {uploadingFilename}...</p>
+          <div className="w-full bg-muted rounded-full h-2.5 overflow-hidden">
+            <div className="bg-primary h-2.5 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
+          </div>
+          <span className="text-xs font-semibold text-primary">{progress}%</span>
         </div>
       )}
 
