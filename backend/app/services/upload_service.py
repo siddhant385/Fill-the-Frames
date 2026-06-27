@@ -6,9 +6,11 @@ from pathlib import Path
 from fastapi import HTTPException, UploadFile
 from huggingface_hub import HfFileSystem
 
-# 🚨 UPLOAD_DIR is completely removed. Using HF configs and Temp Storage.
 from app.core.config import HF_BUCKET_ID, HF_TOKEN, TEMP_STORAGE_DIR
 from app.schemas.upload import UploadData
+import logging
+
+logger = logging.getLogger(__name__)
 
 ALLOWED_EXTENSIONS = {".nc", ".h5", ".hdf5"}
 ALLOWED_MIME_TYPES = {
@@ -81,6 +83,7 @@ class UploadService:
             # Agar cloud upload fail ho jaye, toh local cache clean kar do taaki space na bhare
             if local_file_path.exists():
                 os.remove(local_file_path)
+            logger.exception("Cloud upload failed")
             raise HTTPException(
                 status_code=500, detail=f"Cloud upload failed: {str(e)}"
             )

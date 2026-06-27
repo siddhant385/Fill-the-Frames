@@ -4,6 +4,8 @@ import React from 'react';
 import { useInterpolationStore } from '@/store/interpolation-store';
 import { WorkflowStepper, Step } from '@/components/common/workflow-stepper';
 import { WorkflowNavigation } from '@/components/common/workflow-navigation';
+import { useRouter } from 'next/navigation';
+import { useValidationStore } from '@/store/validation-store';
 import { UploadDropzone } from '@/features/upload/components/UploadDropzone';
 import { MetadataOverview } from '@/features/metadata/components/metadata-overview';
 import { InterpolationConfigPanel } from './interpolation-config-panel';
@@ -17,9 +19,12 @@ import { MetadataSummary } from '@/features/metadata/components/metadata-summary
 import { MetadataVariableList } from '@/features/metadata/components/metadata-variable-list';
 import { Loader2 } from 'lucide-react';
 import { useInterpolation } from '../hooks/use-interpolation';
+import { exportClient } from '@/lib/api/export-client';
 
 export function InterpolationWorkflowWrapper() {
+  const router = useRouter();
   const store = useInterpolationStore();
+  const validationStore = useValidationStore();
   const { startInterpolation } = useInterpolation();
   const { fetchInterpolationMetadata } = useMetadata();
 
@@ -169,6 +174,17 @@ export function InterpolationWorkflowWrapper() {
              }}>
                Review Export Options
              </Button>
+             <Button 
+               onClick={() => {
+                 if (store.outputFileId) {
+                   validationStore.initializeFromInterpolation(store.outputFileId);
+                   router.push('/dashboard/validation');
+                 }
+               }}
+               disabled={!store.outputFileId}
+             >
+               Validate Result
+             </Button>
           </div>
         </div>
       ),
@@ -181,7 +197,12 @@ export function InterpolationWorkflowWrapper() {
         <div className="space-y-6 flex flex-col items-center justify-center min-h-[300px]">
            <h2 className="text-2xl font-bold text-primary">Export Options</h2>
            <p className="text-muted-foreground">Download the generated T0.5 frame.</p>
-           <Button size="lg" className="mt-4">Download .nc File</Button>
+           <Button size="lg" className="mt-4" onClick={() => {
+             if (store.outputFileId) {
+               const url = exportClient.getDownloadUrl(store.outputFileId);
+               window.open(url, "_blank");
+             }
+           }} disabled={!store.outputFileId}>Download .nc File</Button>
         </div>
       ),
     },

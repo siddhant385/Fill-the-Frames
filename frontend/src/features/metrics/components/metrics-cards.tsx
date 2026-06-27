@@ -10,11 +10,9 @@ interface MetricsCardsProps {
 
 export function MetricsCards({ metrics }: MetricsCardsProps) {
   const displayMetrics = [
+    { id: 'accuracy', label: 'Accuracy', value: metrics.accuracy_percentage, type: 'Overall', better: 'higher' },
     { id: 'ssim', label: 'SSIM', value: metrics.ssim, type: 'Structural', better: 'higher' },
-    { id: 'psnr', label: 'PSNR', value: metrics.psnr, type: 'Noise', better: 'higher' },
-    { id: 'mse', label: 'MSE', value: metrics.mse, type: 'Error', better: 'lower' },
-    { id: 'fsim', label: 'FSIM', value: metrics.fsim, type: 'Feature', better: 'higher' },
-    { id: 'issm', label: 'ISSM', value: metrics.issm, type: 'Info', better: 'higher' },
+    { id: 'psnr', label: 'PSNR', value: metrics.psnr_db, type: 'Noise', better: 'higher' },
   ];
 
   return (

@@ -117,7 +117,7 @@ class VisualizationService:
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Visualization variable request failed: {str(e)}")
+            logger.exception(f"Visualization variable request failed for {file_id}")
             raise HTTPException(status_code=500, detail="Dataset Read Failure")
         finally:
             if parser is not None:
@@ -198,9 +198,9 @@ class VisualizationService:
             return {"bounds": [[south, west], [north, east]]}
 
         except Exception as e:
-            logger.error(f"Failed to extract bounds: {str(e)}")
+            logger.exception(f"Failed to extract bounds for {file_id}")
             # Fallback bounds if projection logic fails initially
-            return {"bounds": [[8.0, 68.0], [37.0, 97.0]]}
+            return {"bounds": [[8.0, 68.0], [37.0, 97.0]], "min_lat": 8.0, "min_lon": 68.0, "max_lat": 37.0, "max_lon": 97.0}
         finally:
             if parser is not None:
                 parser.close()
@@ -365,7 +365,7 @@ class VisualizationService:
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Image layer generation failed: {str(e)}")
+            logger.exception(f"Image layer generation failed for {file_id}")
             raise HTTPException(status_code=500, detail="Failed to generate map layer")
         finally:
             if parser is not None:

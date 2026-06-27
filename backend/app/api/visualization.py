@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
+from loguru import logger
 
 from app.schemas.common import ApiResponse
 from app.services.scientific.visualization_service import VisualizationService
@@ -17,6 +18,7 @@ async def get_variables(file_id: str):
             data=variables_data.model_dump(),
         )
     except Exception as e:
+        logger.exception(f"Failed to retrieve variables for {file_id}")
         return ApiResponse(
             success=False, message=f"Failed to retrieve variables: {str(e)}", data=None
         )
@@ -35,6 +37,7 @@ async def get_map_bounds(
             data=bounds_data,
         )
     except Exception as e:
+        logger.exception(f"Failed to extract bounds for {file_id}")
         return ApiResponse(
             success=False, message=f"Failed to extract bounds: {str(e)}", data=None
         )
@@ -60,6 +63,7 @@ async def get_error_map_layer(
             } 
         )
     except Exception as e:
+        logger.exception(f"Failed to generate error map layer for {actual_file_id} vs {ai_file_id}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # Yeh dynamic route ab neeche aayega
@@ -82,4 +86,5 @@ async def get_map_layer(
             } 
         )
     except Exception as e:
+        logger.exception(f"Failed to generate map layer for {file_id}")
         raise HTTPException(status_code=500, detail=str(e))

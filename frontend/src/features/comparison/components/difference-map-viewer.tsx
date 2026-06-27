@@ -4,12 +4,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import { MapContainer, ImageOverlay, useMap, TileLayer } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { DifferenceMapData } from '../types';
 import { BASE_URL } from '@/lib/api/base-client';
 import { visualizationClient } from '@/lib/api/visualization-client';
 
 interface DifferenceMapViewerProps {
-  differenceMap: DifferenceMapData;
+  band: string;
   errorMapUrl?: string | null;
   /** @deprecated kept for backwards-compat with Plotly-era callers */
   sharedLayout?: Record<string, unknown>;
@@ -18,6 +17,8 @@ interface DifferenceMapViewerProps {
   isFullscreen: boolean;
   fileIdForBounds?: string | null;
   variable?: string;
+  /** Pre-fetched bounds [min_lat, min_lon, max_lat, max_lon] — skips internal getBounds call when provided */
+  externalBounds?: [number, number, number, number] | null;
 }
 
 /** Auto-fit the map to the image bounds whenever the URL changes */
@@ -27,7 +28,7 @@ function FitBounds({ bounds }: { bounds: L.LatLngBoundsExpression }) {
 
   useEffect(() => {
     boundsRef.current = bounds;
-    // @ts-ignore - Leaflet types are notoriously picky about bounds arrays
+    // @ts-expect-error - Leaflet types are notoriously picky about bounds arrays
     map.fitBounds(L.latLngBounds(bounds), { animate: false });
   }, [map, bounds]);
 
@@ -35,17 +36,20 @@ function FitBounds({ bounds }: { bounds: L.LatLngBoundsExpression }) {
 }
 
 export function DifferenceMapViewer({
-  differenceMap,
+  band,
   errorMapUrl,
   isFullscreen,
   fileIdForBounds,
   variable,
+  externalBounds,
 }: DifferenceMapViewerProps) {
   const heightClass = isFullscreen ? 'h-[80vh]' : 'h-[60vh] min-h-[500px]';
   const [boundsData, setBoundsData] = useState<[number, number, number, number] | undefined>(undefined);
   const [isBoundsLoading, setIsBoundsLoading] = useState(!!fileIdForBounds);
 
+  // Only fetch bounds from API when no pre-fetched bounds are passed in
   useEffect(() => {
+    if (externalBounds) return; // Already have bounds — skip the duplicate call
     if (fileIdForBounds) {
       setIsBoundsLoading(true);
       visualizationClient.getBounds(fileIdForBounds, variable || "C13").then(res => {
@@ -58,7 +62,10 @@ export function DifferenceMapViewer({
     } else {
       setIsBoundsLoading(false);
     }
-  }, [fileIdForBounds, variable]);
+  }, [fileIdForBounds, variable, externalBounds]);
+
+  // Prefer externalBounds (from store), fall back to self-fetched, then to hardcoded India bbox
+  const boundsData = externalBounds ?? fetchedBounds;
 
   const fullUrl = errorMapUrl
     ? (errorMapUrl.startsWith('http') ? errorMapUrl : `${BASE_URL}${errorMapUrl}`)
@@ -81,7 +88,7 @@ export function DifferenceMapViewer({
   return (
     <div className={`w-full ${heightClass} border rounded-lg overflow-hidden bg-background relative flex flex-col`}>
       <div className="absolute top-4 left-4 z-[1000] bg-background/90 backdrop-blur px-3 py-2 rounded text-sm font-semibold shadow-md border">
-        {differenceMap.band} (Error/Diff Map)
+        {band} (Error/Diff Map)
       </div>
 
       {fullUrl ? (
@@ -104,7 +111,6 @@ export function DifferenceMapViewer({
             url={fullUrl}
             bounds={mapBounds}
             opacity={0.8}
-            // @ts-ignore — crossOrigin is valid on ImageOverlay
             crossOrigin="anonymous"
           />
         </MapContainer>

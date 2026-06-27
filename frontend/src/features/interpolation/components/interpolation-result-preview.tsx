@@ -3,9 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { InterpolationJobState } from '../types';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { useVisualization } from '@/features/visualization/hooks/use-visualization';
 import { SatelliteViewer } from '@/features/visualization/components/satellite-viewer';
-import { Loader2 } from 'lucide-react';
 import { formatDate } from '@/features/metadata/utils/formatters';
 
 interface InterpolationResultPreviewProps {
@@ -38,6 +36,18 @@ export function InterpolationResultPreview({ jobState }: InterpolationResultPrev
             <div className="flex flex-col gap-1">
               <span className="text-xs text-muted-foreground uppercase tracking-wider">Interpolation Ratio</span>
               <span className="text-sm font-medium">{jobState.config.timeRatio.toFixed(2)}</span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-muted-foreground uppercase tracking-wider">Artifact ID</span>
+              <div className="flex items-center justify-between bg-background p-2 rounded border">
+                <span className="text-xs font-mono truncate mr-2">{jobState.outputFileId}</span>
+                <button 
+                  onClick={() => navigator.clipboard.writeText(jobState.outputFileId || '')}
+                  className="text-xs text-primary hover:underline whitespace-nowrap"
+                >
+                  Copy
+                </button>
+              </div>
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-xs text-muted-foreground uppercase tracking-wider">Variable Generated</span>
@@ -80,7 +90,7 @@ function PreviewWrapper({ fileId, variable }: { fileId: string, variable?: strin
     }
   }, [boundsTargetId, varName]);
 
-  const generatedLayerUrl = visualizationClient.getLayerUrl(fileId, varName, 0);
+  const generatedLayerUrl = visualizationClient.getLayerUrl(fileId, varName);
 
   if (isLoading) {
     return (

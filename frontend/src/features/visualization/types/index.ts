@@ -48,3 +48,11 @@ export interface MockImageData {
   histogram: { binStart: number; binEnd: number; count: number }[];
   info: FrameInfo;
 }
+
+export interface MapBoundsResponse {
+  bounds: [[number, number], [number, number]];
+  min_lat: number;
+  max_lat: number;
+  min_lon: number;
+  max_lon: number;
+}

@@ -5,7 +5,6 @@ export function useAnimation() {
   const { 
     frames, 
     selectedVariable,
-    currentFrameIndex, 
     playing, 
     playbackSpeed, 
     nextFrame 
@@ -38,22 +37,17 @@ export function useAnimation() {
     };
   }, [playing, playbackSpeed, filteredFrames.length, nextFrame]);
 
-  // Preloading N+1 and N+2
+  // Preload all frames for the selected sequence
   useEffect(() => {
     if (filteredFrames.length === 0) return;
 
-    const preloadImage = (index: number) => {
-      const frame = filteredFrames[index % filteredFrames.length];
+    filteredFrames.forEach(frame => {
       if (frame && frame.imageUrl) {
         const img = new Image();
         img.src = frame.imageUrl;
       }
-    };
-
-    // Preload next 2 frames to avoid stutter
-    preloadImage(currentFrameIndex + 1);
-    preloadImage(currentFrameIndex + 2);
-  }, [currentFrameIndex, filteredFrames]);
+    });
+  }, [filteredFrames]);
 
   return null;
 }

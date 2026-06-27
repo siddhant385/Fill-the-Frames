@@ -3,16 +3,17 @@
 import { useEffect } from "react";
 import { MapContainer, TileLayer, ImageOverlay, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import { LatLngBoundsExpression } from "leaflet";
 import { useAnimationStore } from "@/store/animation-store";
 
 // South Asia / India approximate bounds for INSAT
-const DEFAULT_BOUNDS: [[number, number], [number, number]] = [
+const DEFAULT_BOUNDS: LatLngBoundsExpression = [
   [-10, 45],
   [45, 100],
 ];
 
 // Helper to fit bounds when they change
-function MapController({ bounds }: { bounds: [[number, number], [number, number]] }) {
+function MapController({ bounds }: { bounds: LatLngBoundsExpression }) {
   const map = useMap();
   useEffect(() => {
     map.fitBounds(bounds, { animate: true });
@@ -32,7 +33,7 @@ export default function AnimationMapClient() {
   const safeIndex = currentFrameIndex < filteredFrames.length ? currentFrameIndex : 0;
   const currentFrame = filteredFrames[safeIndex];
 
-  const bounds = currentFrame?.bounds || DEFAULT_BOUNDS;
+  const bounds = (currentFrame?.bounds as LatLngBoundsExpression) || DEFAULT_BOUNDS;
 
   return (
     <div className="w-full h-[600px] rounded-xl overflow-hidden border border-slate-800 shadow-xl relative z-0">

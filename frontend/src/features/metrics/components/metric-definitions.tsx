@@ -5,10 +5,8 @@ import { BookOpen } from 'lucide-react';
 export function MetricDefinitions() {
   const definitions = [
     { name: 'SSIM', title: 'Structural Similarity Index', desc: 'Measures the similarity between two images. Higher is better (max 1.0). Focuses on structural coherence rather than absolute pixel errors.' },
-    { name: 'FSIM', title: 'Feature Similarity Index', desc: 'Evaluates similarity based on low-level features (phase congruency and gradient magnitude). Higher is better (max 1.0).' },
-    { name: 'ISSM', title: 'Information Theoretic Similarity', desc: 'Assesses information fidelity and shared mutual information between the generated and target distributions. Higher is better (max 1.0).' },
     { name: 'PSNR', title: 'Peak Signal-to-Noise Ratio', desc: 'Ratio between the maximum possible power of a signal and the power of corrupting noise (MSE). Higher is better.' },
-    { name: 'MSE', title: 'Mean Squared Error', desc: 'Measures the average squared difference between estimated values and actual value. Lower is better (min 0).' },
+    { name: 'Accuracy', title: 'Validation Accuracy', desc: 'Overall accuracy percentage derived from structural and signal validation metrics.' },
   ];
 
   return (

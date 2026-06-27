@@ -9,12 +9,15 @@ from app.core.config import DEFAULT_MODEL_PATH
 
 class ModelLoader:
     _session = None
+    _model_name = None
 
     @classmethod
     def load_model(cls, model_path: str = DEFAULT_MODEL_PATH):
         if cls._session is not None:
             logger.info("AI Model is already loaded in memory.")
             return cls._session
+
+        cls._model_name = os.path.basename(model_path)
 
         if not os.path.exists(model_path):
             logger.error(f"ONNX Model file not found at: {model_path}")
@@ -60,6 +63,10 @@ class ModelLoader:
                 status_code=503, detail="AI Model not loaded into memory."
             )
         return cls._session
+
+    @classmethod
+    def get_model_name(cls):
+        return cls._model_name
 
     @classmethod
     def unload_model(cls):

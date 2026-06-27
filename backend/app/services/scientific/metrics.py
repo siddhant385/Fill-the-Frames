@@ -122,6 +122,9 @@ class MetricsService:
                 "accuracy_percentage": round(quality_score, 2),
             }
 
+        except HTTPException:
+            # Re-raise HTTP exceptions (e.g. 400 Bad Request) without modification
+            raise
         except Exception as e:
             logger.error(f"Metrics calculation failed: {str(e)}")
             raise HTTPException(

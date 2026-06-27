@@ -1,11 +1,12 @@
 import React from 'react';
 import { InterpolationConfig } from '../types';
-import { MOCK_GPU_STATUS } from '../constants';
+import { healthClient } from '@/lib/api/health-client';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Cpu, Settings2, ShieldCheck } from 'lucide-react';
+import { Cpu, Settings2, ShieldCheck, Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useQuery } from '@tanstack/react-query';
 
 interface InterpolationConfigPanelProps {
   config: InterpolationConfig;
@@ -15,6 +16,57 @@ interface InterpolationConfigPanelProps {
 }
 
 export function InterpolationConfigPanel({ config, onConfigChange, disabled, availableVariables = ["C13", "TIR1"] }: InterpolationConfigPanelProps) {
+  const { data: gpuData, isLoading: isLoadingGpu, isError: isErrorGpu } = useQuery({
+    queryKey: ['health', 'gpu'],
+    queryFn: () => healthClient.getGpuStatus(),
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+
+  const { data: modelsData, isLoading: isLoadingModels, isError: isErrorModels } = useQuery({
+    queryKey: ['health', 'models'],
+    queryFn: () => healthClient.getModelsStatus(),
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+
+  if (isErrorGpu || isErrorModels) {
+    console.error("Failed to fetch health status from backend.");
+  }
+
+  const renderGpuStatus = () => {
+    if (isLoadingGpu) {
+      return (
+        <div className="flex items-center gap-2">
+          <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />
+          <span className="text-muted-foreground">Checking GPU...</span>
+        </div>
+      );
+    }
+    if (isErrorGpu || !gpuData) {
+      return 'GPU: Unavailable';
+    }
+    return gpuData.cuda_available ? 'CUDA: Available' : 'CPU Only';
+  };
+
+  const renderModelName = () => {
+    if (isLoadingModels) {
+      return (
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          Loading model...
+        </div>
+      );
+    }
+    if (isErrorModels || !modelsData) {
+      return 'Unavailable';
+    }
+    if (modelsData.rife === 'loaded') {
+      return 'RIFE (Loaded)';
+    }
+    return 'Unknown Model';
+  };
+
   return (
     <Card>
       <CardHeader className="pb-3 border-b">
@@ -30,7 +82,7 @@ export function InterpolationConfigPanel({ config, onConfigChange, disabled, ava
             </Badge>
             <Badge variant="outline" className="flex gap-1 items-center bg-muted/30">
               <Cpu className="w-3 h-3 text-blue-500" />
-              {MOCK_GPU_STATUS}
+              {renderGpuStatus()}
             </Badge>
           </div>
         </div>
@@ -59,8 +111,8 @@ export function InterpolationConfigPanel({ config, onConfigChange, disabled, ava
           <div className="flex flex-col gap-2 flex-1 border-l pl-8">
             <span className="text-sm font-semibold">Active Model</span>
             <span className="text-xs text-muted-foreground">Selected AI model for temporal generation.</span>
-            <div className="mt-2 text-sm font-mono bg-muted py-1.5 px-3 rounded inline-block w-fit">
-              {config.model}
+            <div className="mt-2 text-sm font-mono bg-muted py-1.5 px-3 rounded inline-block w-fit min-h-[32px] min-w-[120px] flex items-center justify-center">
+              {renderModelName()}
             </div>
           </div>
         </div>

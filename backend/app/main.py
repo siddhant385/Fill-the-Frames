@@ -115,8 +115,8 @@ def get_app() -> FastAPI:
 
     # API_PREFIX ka use karke URLs clean kar diye
     fast_app.include_router(
-        health.router, tags=["Health"]
-    )  # Health check root pe hi theek hai
+        health.router, prefix=API_PREFIX, tags=["Health"]
+    )
     fast_app.include_router(
         upload.router, prefix=f"{API_PREFIX}/upload", tags=["Upload"]
     )

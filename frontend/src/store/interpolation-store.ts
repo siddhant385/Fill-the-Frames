@@ -4,6 +4,7 @@ import { InterpolationJobState, InterpolationConfig } from '@/features/interpola
 import { DEFAULT_INTERPOLATION_CONFIG } from '@/features/interpolation/constants';
 import { FrameDataResponse } from '@/features/visualization/types';
 import { MetadataResponse } from '@/features/metadata/types';
+import { useAnimationStore } from './animation-store';
 
 interface InterpolationState extends InterpolationJobState {
   currentStep: number;
@@ -81,28 +82,31 @@ export const useInterpolationStore = create<InterpolationState>()(
       setMetadataState: (newState) => set((state) => ({ ...state, ...newState })),
       setVisState: (newState) => set((state) => ({ ...state, ...newState })),
       
-      reset: () => set({
-        currentStep: 1,
-        ...initialState,
-        jobId: undefined,
-        startedAt: undefined,
-        completedAt: undefined,
-        error: undefined,
-        t0FileId: null,
-        t1FileId: null,
-        t0Filename: null,
-        t1Filename: null,
-        t0Metadata: null,
-        t1Metadata: null,
-        metadataLoading: false,
-        metadataError: null,
-        selectedVariable: null,
-        selectedTimeIndex: 0,
-        currentFrame: null,
-        availableVariables: [],
-        visLoading: false,
-        visError: null,
-      }),
+      reset: () => {
+        useAnimationStore.getState().reset();
+        set({
+          currentStep: 1,
+          ...initialState,
+          jobId: undefined,
+          startedAt: undefined,
+          completedAt: undefined,
+          error: undefined,
+          t0FileId: null,
+          t1FileId: null,
+          t0Filename: null,
+          t1Filename: null,
+          t0Metadata: null,
+          t1Metadata: null,
+          metadataLoading: false,
+          metadataError: null,
+          selectedVariable: null,
+          selectedTimeIndex: 0,
+          currentFrame: null,
+          availableVariables: [],
+          visLoading: false,
+          visError: null,
+        });
+      },
     }),
     {
       name: 'interpolation-storage',
