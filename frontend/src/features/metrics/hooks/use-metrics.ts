@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { MetricData, MetricTrendPoint, ValidationInsights } from '../types';
 import { MOCK_TREND_DATA, MOCK_INSIGHTS, MOCK_METRICS_DATA } from '../mock/data';
-import { useUploadStore } from '@/store/upload-store';
-import { metricsClient } from '@/lib/api';
+import { useValidationStore } from '@/store/validation-store';
+import { metricsClient } from '@/lib/api/metrics-client';
 
 export function useMetrics(truthFileIdProp?: string, generatedFileIdProp?: string) {
   const [isReady, setIsReady] = useState(false);
@@ -10,23 +10,15 @@ export function useMetrics(truthFileIdProp?: string, generatedFileIdProp?: strin
   const [trend, setTrend] = useState<MetricTrendPoint[]>([]);
   const [insights, setInsights] = useState<ValidationInsights | null>(null);
 
-  const files = useUploadStore(state => state.files);
+  const validationStore = useValidationStore();
 
   useEffect(() => {
     const loadMetrics = async () => {
       try {
         setIsReady(false);
         
-        let truthId = truthFileIdProp;
-        let genId = generatedFileIdProp;
-
-        if (!truthId || !genId) {
-           const completedFiles = files.filter(f => f.status === 'completed' && f.cloudFileId);
-           if (completedFiles.length >= 2) {
-             truthId = completedFiles[0].cloudFileId;
-             genId = completedFiles[1].cloudFileId;
-           }
-        }
+        let truthId = truthFileIdProp || validationStore.groundTruthFileId;
+        let genId = generatedFileIdProp || validationStore.artifactId;
 
         if (truthId && genId) {
           const res = await metricsClient.compare({
@@ -34,11 +26,13 @@ export function useMetrics(truthFileIdProp?: string, generatedFileIdProp?: strin
             generated_file_id: genId,
           });
 
-          if (res.success && res.data) {
+          if (res) {
+             const safeFixed = (val: unknown, digits: number) =>
+               typeof val === 'number' ? Number(val.toFixed(digits)) : 0;
              const mData: MetricData[] = [
-               { id: 'psnr', type: 'PSNR', category: 'Signal', value: Number(res.data.psnr?.toFixed(2)) || 0, maxScore: 100, status: 'good', description: 'Peak Signal-to-Noise Ratio' },
-               { id: 'ssim', type: 'SSIM', category: 'Structural', value: Number(res.data.ssim?.toFixed(4)) || 0, maxScore: 1, status: 'good', description: 'Structural Similarity Index Measure' },
-               { id: 'mse', type: 'MSE', category: 'Signal', value: Number(res.data.mse?.toFixed(4)) || 0, maxScore: 0, status: 'acceptable', description: 'Mean Squared Error' },
+               { id: 'psnr', type: 'PSNR', category: 'Signal', value: safeFixed(res.psnr, 2), maxScore: 100, status: 'good', description: 'Peak Signal-to-Noise Ratio' },
+               { id: 'ssim', type: 'SSIM', category: 'Structural', value: safeFixed(res.ssim, 4), maxScore: 1, status: 'good', description: 'Structural Similarity Index Measure' },
+               { id: 'mse', type: 'MSE', category: 'Signal', value: safeFixed(res.mse, 4), maxScore: 0, status: 'acceptable', description: 'Mean Squared Error' },
              ];
              setMetrics(mData);
              setTrend(MOCK_TREND_DATA);
@@ -64,7 +58,7 @@ export function useMetrics(truthFileIdProp?: string, generatedFileIdProp?: strin
     };
 
     loadMetrics();
-  }, [truthFileIdProp, generatedFileIdProp, files]);
+  }, [truthFileIdProp, generatedFileIdProp, validationStore.groundTruthFileId, validationStore.artifactId]);
 
   return {
     isReady,

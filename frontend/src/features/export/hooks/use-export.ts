@@ -1,43 +1,44 @@
 import { useState, useCallback } from "react";
 import { ExportJob, ExportOptions } from "../types";
 import { DEFAULT_EXPORT_OPTIONS } from "../constants";
-import { exportClient } from "@/lib/api";
-import { useUploadStore } from "@/store/upload-store";
+import { exportClient } from "@/lib/api/export-client";
+import { useInterpolationStore } from "@/store/interpolation-store";
+import { useValidationStore } from "@/store/validation-store";
 
 export function useExport() {
   const [options, setOptions] = useState<ExportOptions>(DEFAULT_EXPORT_OPTIONS);
   const [jobs, setJobs] = useState<ExportJob[]>([]);
-  const files = useUploadStore(state => state.files);
+  const interpolationStore = useInterpolationStore();
+  const validationStore = useValidationStore();
 
   const startExport = useCallback(() => {
-    // Select the latest completed file
-    const completedFiles = files.filter(f => f.status === 'completed' && f.cloudFileId);
-    if (completedFiles.length === 0) {
-      alert("No files available for export. Please upload a file first.");
-      return;
+    let targetFileId = interpolationStore.outputFileId || validationStore.artifactId;
+    
+    if (!targetFileId) {
+      const userInput = window.prompt("No generated file detected in session. Enter the File/Artifact ID you wish to download:");
+      if (!userInput) return;
+      targetFileId = userInput;
     }
     
-    const targetFile = completedFiles[completedFiles.length - 1]; // latest
     const newJobId = `job-${Date.now()}`;
-    
-    const downloadUrl = exportClient.getDownloadUrl(targetFile.cloudFileId!);
+    const downloadUrl = exportClient.getDownloadUrl(targetFileId);
 
     const newJob: ExportJob = {
       id: newJobId,
       format: options.format,
-      status: "completed", // Backend provides direct download link currently
+      status: "completed",
       progress: 100,
       createdAt: new Date().toISOString(),
       completedAt: new Date().toISOString(),
       downloadUrl: downloadUrl,
-      fileSize: `${((targetFile.fileInfo?.size || 0) / (1024*1024)).toFixed(2)} MB`
+      fileSize: "Unknown" 
     };
 
     setJobs((prev) => [newJob, ...prev]);
 
     // Open download directly
     window.open(downloadUrl, "_blank");
-  }, [options, files]);
+  }, [options, interpolationStore.outputFileId, validationStore.artifactId]);
 
   const cancelExport = useCallback((jobId: string) => {
     // Not applicable since it's instant

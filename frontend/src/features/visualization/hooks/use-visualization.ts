@@ -1,57 +1,75 @@
 import { useState, useEffect } from 'react';
 import type { PlotMouseEvent, PlotDatum } from 'plotly.js';
-import { VisualizationState, ColorMap, MockImageData, FrameType, PixelData } from '../types';
+import { ColorMap, FrameType, PixelData } from '../types';
 import { VISUALIZATION_DEFAULTS } from '../constants';
-import { useUploadStore } from '@/store/upload-store';
-import { visualizationClient } from '@/lib/api';
+import { useInterpolationStore } from '@/store/interpolation-store';
+import { visualizationClient } from '@/lib/api/visualization-client';
 
-// Fallback to mock data if backend doesn't return matrix correctly yet
-import { mockFrameData } from '../mock/data';
+export function useVisualization(fileId?: string | null) {
+  const store = useInterpolationStore();
+  const { 
+    selectedVariable, 
+    selectedTimeIndex, 
+    currentFrame: data, 
+    visLoading, 
+    visError: error 
+  } = store;
 
-export function useVisualization(fileIdProp?: string) {
-  const [state, setState] = useState<VisualizationState>('loading');
-  const [data, setData] = useState<MockImageData | null>(null);
-  const [variables, setVariables] = useState<any>(null);
-  
+  // Local UI state
   const [colorMap, setColorMap] = useState<ColorMap>(VISUALIZATION_DEFAULTS.initialColorMap);
   const [frameType, setFrameType] = useState<FrameType>(VISUALIZATION_DEFAULTS.initialFrame);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  
-  const files = useUploadStore(state => state.files);
-
   const [pixelData, setPixelData] = useState<PixelData>({
-    x: null,
-    y: null,
-    value: null,
-    colormapValue: null
+    x: null, y: null, value: null, colormapValue: null
   });
 
   const [layerUrl, setLayerUrl] = useState<string | null>(null);
   const [bounds, setBounds] = useState<[number, number, number, number] | undefined>(undefined);
 
+  // Derived state string for UI compatibility
+  const state = visLoading ? 'loading' : error ? 'error' : 'ready';
+
   useEffect(() => {
-    const loadData = async () => {
+    if (store.status === 'completed') {
+      console.log('Interpolation completed successfully');
+    }
+  }, [store.status]);
+
+  useEffect(() => {
+    if (!fileId) return;
+
+    const fetchVariables = async () => {
       try {
-        setState('loading');
+        const res = await visualizationClient.getAvailableVariables(fileId);
+        if (res.success && res.data.length > 0) {
+          store.setVisState({ availableVariables: res.data });
+          if (!selectedVariable) {
+            store.setVisState({ selectedVariable: res.data[0] });
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch variables", err);
+      }
+    };
+
+    fetchVariables();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fileId]);
+
+  useEffect(() => {
+    if (!fileId || !selectedVariable) return;
+
+    const fetchFrameAndImage = async () => {
+      try {
+        store.setVisState({ visLoading: true, visError: null });
         
-        let targetFileId = fileIdProp;
-        if (!targetFileId) {
-          const completedFile = files.find(f => f.status === 'completed' && f.cloudFileId);
-          targetFileId = completedFile?.cloudFileId;
-        }
-
-        if (!targetFileId) {
-          setState('error');
-          return;
-        }
-
-        // Generate the layer image URL
-        const url = visualizationClient.getLayerUrl(targetFileId, "C13", 0);
+        // Generate layer url
+        const url = visualizationClient.getLayerUrl(fileId, selectedVariable, selectedTimeIndex);
         setLayerUrl(url);
 
-        // Fetch variable bounds
+        // Fetch bounds
         try {
-          const boundsRes = await visualizationClient.getBounds(targetFileId);
+          const boundsRes = await visualizationClient.getBounds(fileId, selectedVariable);
           if (boundsRes.success && boundsRes.data) {
              setBounds([
                boundsRes.data.min_lat,
@@ -64,23 +82,27 @@ export function useVisualization(fileIdProp?: string) {
           console.warn("Could not load dynamic bounds", e);
         }
 
-        // Fetch variable metadata
-        const response = await visualizationClient.getVariables(targetFileId);
-        if (response.success && response.data) {
-          setVariables(response.data);
-          setState('ready');
-        } else {
-           throw new Error(response.message);
+        // Backend only has images right now, getFrame might throw 404, we catch it silently.
+        try {
+          const res = await visualizationClient.getFrame(fileId, selectedVariable, selectedTimeIndex);
+          if (res.success) {
+            store.setVisState({ currentFrame: res.data, visLoading: false });
+          }
+        } catch(err) {
+           store.setVisState({ visLoading: false }); // image layer takes priority
         }
-        
-      } catch (error) {
-        console.error("Failed to load visualization data:", error);
-        setState('ready'); // Soft fail to show empty/error state gracefully
+
+      } catch (err: unknown) {
+        store.setVisState({ 
+          visError: err instanceof Error ? err.message : 'Failed to load frame',
+          visLoading: false 
+        });
       }
     };
-    
-    loadData();
-  }, [frameType, fileIdProp, files]);
+
+    fetchFrameAndImage();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fileId, selectedVariable, selectedTimeIndex]);
 
   const toggleFullscreen = () => setIsFullscreen(!isFullscreen);
 
@@ -91,24 +113,18 @@ export function useVisualization(fileIdProp?: string) {
         x: pt.x as number,
         y: pt.y as number,
         value: pt.z !== undefined ? Number(pt.z) : null,
-        colormapValue: null // We could map this using plotly config later if needed
+        colormapValue: null 
       });
     }
   };
 
   const handleUnhover = () => {
-    setPixelData({
-      x: null,
-      y: null,
-      value: null,
-      colormapValue: null
-    });
+    setPixelData({ x: null, y: null, value: null, colormapValue: null });
   };
 
   return {
     state,
     data,
-    variables,
     colorMap,
     setColorMap,
     frameType,
@@ -118,6 +134,12 @@ export function useVisualization(fileIdProp?: string) {
     pixelData,
     handleHover,
     handleUnhover,
+    // Add these for UI to change variable/time
+    selectedVariable,
+    setSelectedVariable: (v: string) => store.setVisState({ selectedVariable: v }),
+    selectedTimeIndex,
+    setSelectedTimeIndex: (t: number) => store.setVisState({ selectedTimeIndex: t }),
+    availableVariables: store.availableVariables,
     layerUrl,
     bounds
   };

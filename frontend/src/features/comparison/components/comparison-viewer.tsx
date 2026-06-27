@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import type { Layout, PlotRelayoutEvent } from 'plotly.js';
 import { ComparisonFrame } from '../types';
 import { formatDate } from '@/features/metadata/utils/formatters';
-import { BASE_URL } from '@/lib/api';
+import { BASE_URL } from '@/lib/api/base-client';
 
 interface ComparisonViewerProps {
   frame: ComparisonFrame;

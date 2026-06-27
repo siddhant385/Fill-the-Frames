@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useImperativeHandle, forwardRef, useState } from 'react';
-import { ColorMap } from '../types';
-import { BASE_URL } from '@/lib/api';
+import { FrameDataResponse, ColorMap } from '../types';
 import dynamic from 'next/dynamic';
 import { LatLngBoundsExpression } from 'leaflet';
+
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://sid385-fill-the-frames.hf.space/api/v1";
 
 const LeafletMap = dynamic(
   () => import('./leaflet-map'),
@@ -13,11 +14,11 @@ const LeafletMap = dynamic(
 
 interface SatelliteViewerProps {
   layerUrl?: string | null;
-  colorMap: ColorMap;
-  bounds?: [number, number, number, number]; // [minLat, minLon, maxLat, maxLon]
+  bounds?: [number, number, number, number];
+  colorMap?: ColorMap;
+  data?: FrameDataResponse | null;
   onHover?: (e: any) => void;
   onUnhover?: () => void;
-  data?: any;
 }
 
 export interface SatelliteViewerRef {
@@ -25,7 +26,7 @@ export interface SatelliteViewerRef {
 }
 
 export const SatelliteViewer = forwardRef<SatelliteViewerRef, SatelliteViewerProps>(
-  ({ layerUrl, colorMap, bounds }, ref) => {
+  ({ layerUrl, bounds }, ref) => {
     const [resetTrigger, setResetTrigger] = useState(0);
 
     useImperativeHandle(ref, () => ({
@@ -50,8 +51,8 @@ export const SatelliteViewer = forwardRef<SatelliteViewerRef, SatelliteViewerPro
     }
 
     return (
-      <div className="relative w-full h-full min-h-[400px] md:min-h-[600px] border rounded-lg overflow-hidden bg-background">
-        <LeafletMap url={fullUrl} bounds={mapBounds} resetTrigger={resetTrigger} />
+      <div className="relative w-full h-full min-h-[400px] md:min-h-[600px] border rounded-lg overflow-hidden bg-[#0a0a0a]">
+        <LeafletMap url={fullUrl} resetTrigger={resetTrigger} bounds={bounds} />
       </div>
     );
   }

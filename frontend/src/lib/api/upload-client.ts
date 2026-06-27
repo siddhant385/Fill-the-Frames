@@ -1,23 +1,28 @@
-import { api, ApiResponse } from "./base-client";
+import { ApiResponse } from "@/types/api";
+
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://sid385-fill-the-frames.hf.space/api/v1";
+
+export interface UploadResponse {
+  fileId: string;
+  filename: string;
+  status: string;
+}
 
 export const uploadClient = {
-  uploadFile: (file: File): Promise<ApiResponse> => {
+  uploadFile: async (file: File): Promise<ApiResponse<UploadResponse>> => {
     const formData = new FormData();
     formData.append("file", file);
-    return api.postFormData<ApiResponse>("/upload/", formData);
-  },
 
-  uploadBatch: (files: File[]): Promise<ApiResponse> => {
-    const formData = new FormData();
-    files.forEach((file) => formData.append("files", file));
-    return api.postFormData<ApiResponse>("/upload/batch", formData);
-  },
+    const response = await fetch(`${BASE_URL}/upload/`, {
+      method: "POST",
+      // headers: { "Authorization": `Bearer ${process.env.NEXT_PUBLIC_HF_TOKEN}` },
+      body: formData,
+    });
 
-  getFiles: (): Promise<ApiResponse> => {
-    return api.get<ApiResponse>("/upload/");
-  },
+    if (!response.ok) {
+      throw new Error(`Upload failed with status ${response.status}`);
+    }
 
-  deleteFile: (fileId: string): Promise<ApiResponse> => {
-    return api.delete<ApiResponse>(`/upload/${fileId}`);
+    return response.json();
   },
 };

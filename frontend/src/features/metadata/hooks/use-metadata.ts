@@ -1,50 +1,74 @@
-import { useState, useEffect } from 'react';
-import { DetailedSatelliteMetadata, MetadataState } from '../types';
-import { useUploadStore } from '@/store/upload-store';
-import { metadataClient } from '@/lib/api';
+import { useCallback } from "react";
+import { metadataClient } from "@/lib/api/metadata-client";
+import { useInterpolationStore } from "@/store/interpolation-store";
+import { useValidationStore } from "@/store/validation-store";
 
-/**
- * Hook to manage metadata state and fetching.
- */
-export function useMetadata(fileIdProp?: string) {
-  const [data, setData] = useState<DetailedSatelliteMetadata | null>(null);
-  const [state, setState] = useState<MetadataState>('loading');
-  const files = useUploadStore(state => state.files);
+export function useMetadata() {
+  const interpolationStore = useInterpolationStore();
+  const validationStore = useValidationStore();
 
-  useEffect(() => {
-    const loadMetadata = async () => {
-      try {
-        setState('loading');
-        
-        let targetFileId = fileIdProp;
-        if (!targetFileId) {
-          const completedFile = files.find(f => f.status === 'completed' && f.cloudFileId);
-          targetFileId = completedFile?.cloudFileId;
-        }
-
-        if (!targetFileId) {
-          setState('empty');
-          return;
-        }
-
-        const response = await metadataClient.getMetadata(targetFileId);
-        if (response.success && response.data) {
-          setData(response.data as DetailedSatelliteMetadata);
-          setState('ready');
-        } else {
-          throw new Error(response.message || "Failed to load metadata");
-        }
-      } catch (error) {
-        console.error("Failed to load metadata:", error);
-        setState('error');
+  const fetchInterpolationMetadata = useCallback(
+    async (fileId: string, type: "t0" | "t1") => {
+      if (!fileId) {
+        console.error(`Metadata requested without fileId for type: ${type}`);
+        interpolationStore.setMetadataState({ metadataError: "Missing file ID", metadataLoading: false });
+        return;
       }
-    };
+      interpolationStore.setMetadataState({ metadataLoading: true, metadataError: null });
+      try {
+        const response = await metadataClient.getMetadata(fileId);
+        if (response.success && response.data) {
+          if (type === "t0") {
+            interpolationStore.setMetadataState({ t0Metadata: response.data, metadataLoading: false });
+          } else {
+            interpolationStore.setMetadataState({ t1Metadata: response.data, metadataLoading: false });
+          }
+        } else {
+          interpolationStore.setMetadataState({ 
+            metadataError: response.message || "Failed to fetch metadata",
+            metadataLoading: false 
+          });
+        }
+      } catch (err: unknown) {
+        interpolationStore.setMetadataState({ 
+          metadataError: err instanceof Error ? err.message : "An unexpected error occurred",
+          metadataLoading: false 
+        });
+      }
+    },
+    [interpolationStore]
+  );
 
-    loadMetadata();
-  }, [fileIdProp, files]);
+  const fetchValidationMetadata = useCallback(
+    async (fileId: string) => {
+      if (!fileId) {
+        console.error("Validation metadata requested without fileId");
+        validationStore.setMetadataState({ metadataError: "Missing file ID", metadataLoading: false });
+        return;
+      }
+      validationStore.setMetadataState({ metadataLoading: true, metadataError: null });
+      try {
+        const response = await metadataClient.getMetadata(fileId);
+        if (response.success && response.data) {
+          validationStore.setMetadataState({ groundTruthMetadata: response.data, metadataLoading: false });
+        } else {
+          validationStore.setMetadataState({ 
+            metadataError: response.message || "Failed to fetch metadata",
+            metadataLoading: false 
+          });
+        }
+      } catch (err: unknown) {
+        validationStore.setMetadataState({ 
+          metadataError: err instanceof Error ? err.message : "An unexpected error occurred",
+          metadataLoading: false 
+        });
+      }
+    },
+    [validationStore]
+  );
 
   return {
-    data,
-    state,
+    fetchInterpolationMetadata,
+    fetchValidationMetadata,
   };
 }
