@@ -30,6 +30,7 @@ export function useAnimation() {
 
   // Function to process backend frames
   const processFrames = async (data: any[], targetVariable: string) => {
+    console.log("[useAnimation] Processing frames:", data.length);
     if (!data || data.length === 0) return;
     
     // Ensure URLs are absolute and bounds are properly formatted arrays
@@ -39,8 +40,11 @@ export function useAnimation() {
       bounds: Array.isArray(frame.bounds) ? frame.bounds : (frame.bounds?.bounds || null)
     }));
 
+    console.log("[useAnimation] Absolute URLs applied:", absoluteData[0].imageUrl);
+
     // Background: Fetch bounds for the first frame if needed
     if (!absoluteData[0].bounds) {
+      console.log("[useAnimation] Bounds missing, fetching from API...");
       try {
         const boundsRes = await visualizationClient.getBounds(absoluteData[0].frameId, targetVariable);
         const boundsArray = (boundsRes as any).bounds || (boundsRes as any).data?.bounds;
@@ -49,32 +53,40 @@ export function useAnimation() {
         console.error("Failed to fetch bounds", e);
         absoluteData.forEach((f: any) => f.bounds = fallbackBounds);
       }
+    } else {
+      console.log("[useAnimation] Bounds exist:", absoluteData[0].bounds);
     }
 
     setFrames(absoluteData);
     setError(null);
     setLoading(false);
+    console.log("[useAnimation] Zustand store updated with", absoluteData.length, "frames.");
   };
 
   // Fetch initial data & Listen for Server-Sent Events (SSE)
   useEffect(() => {
+    console.log("[useAnimation] Hook initialized!");
     setLoading(true);
     const targetVariable = selectedVariable || "TIR1";
     
     // 1. Initial REST API Fetch (Bypasses any SSE proxy buffering delays)
     animationClient.getLatestFrames(targetVariable)
-      .then(data => processFrames(data, targetVariable))
+      .then(data => {
+        console.log("[useAnimation] Initial REST fetch successful:", data.length, "frames");
+        processFrames(data, targetVariable);
+      })
       .catch(err => {
         console.error("Initial fetch failed:", err);
-        // Don't set error yet, let SSE try
       });
 
     // 2. Connect to the live stream
+    console.log("[useAnimation] Opening SSE Stream for variable:", targetVariable);
     const eventSource = new EventSource(`${BASE_URL}/animation/stream?variable=${targetVariable}`);
     
     eventSource.onmessage = async (event) => {
       try {
         const data = JSON.parse(event.data);
+        console.log("[useAnimation] SSE message received:", data.length, "frames");
         await processFrames(data, targetVariable);
       } catch (err) {
         console.error("Failed to parse SSE animation frames", err);
@@ -86,6 +98,7 @@ export function useAnimation() {
     };
 
     return () => {
+      console.log("[useAnimation] Closing SSE stream...");
       eventSource.close();
     };
   }, [selectedVariable, setFrames, setLoading, setError]);
@@ -128,57 +141,3 @@ export function useAnimation() {
 
   return null;
 }
-    };
-
-    eventSource.onerror = (err) => {
-      console.error("SSE Stream connection error", err);
-      // EventSource auto-reconnects, but we can set a soft error if needed
-    };
-
-    return () => {
-      // Close connection when unmounting or switching variables
-      eventSource.close();
-    };
-  }, [selectedVariable, setFrames, setLoading, setError]);
-
-  // Timer orchestration
-  useEffect(() => {
-    if (playing && filteredFrames.length > 0) {
-      // Base FPS for 1x speed. E.g., 2 frames per second base.
-      const intervalMs = 1000 / (2 * playbackSpeed);
-      
-      timerRef.current = setInterval(() => {
-        nextFrame();
-      }, intervalMs);
-    } else {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-    }
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [playing, playbackSpeed, filteredFrames.length, nextFrame]);
-
-  // Preloading N+1 and N+2
-  useEffect(() => {
-    if (filteredFrames.length === 0) return;
-
-    const preloadImage = (index: number) => {
-      const frame = filteredFrames[index % filteredFrames.length];
-      if (frame && frame.imageUrl) {
-        const img = new Image();
-        img.src = frame.imageUrl;
-      }
-    };
-
-    // Preload next 2 frames to avoid stutter
-    preloadImage(currentFrameIndex + 1);
-    preloadImage(currentFrameIndex + 2);
-  }, [currentFrameIndex, filteredFrames]);
-
-  return null;
-}
-
