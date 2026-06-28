@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { MapContainer, TileLayer, ImageOverlay, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { useAnimationStore } from "@/store/animation-store";
+import { useAnimation } from "@/features/animation/hooks/use-animation";
 
 // South Asia / India approximate bounds for INSAT
 const DEFAULT_BOUNDS: [[number, number], [number, number]] = [
@@ -21,6 +22,9 @@ function MapController({ bounds }: { bounds: [[number, number], [number, number]
 }
 
 export default function AnimationMapClient() {
+  // Initialize the orchestration hook (handles API polling, SSE, and playback timers)
+  useAnimation();
+
   const { frames, currentFrameIndex, selectedVariable } = useAnimationStore();
   
   // Filter frames by selected variable
