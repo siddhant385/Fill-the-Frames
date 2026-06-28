@@ -152,16 +152,15 @@ class AnimationScheduler:
                 logger.info(
                     f"Running AI Interpolation between {latest_raw_filename} and {filename}..."
                 )
-                interpolated_time = self._run_interpolation_logic(
-                    str(local_a), str(local_b), str(local_ai)
+                interpolated_time, ai_png_bytes, ai_bounds = (
+                    self._run_interpolation_logic(str(local_a), str(local_b))
                 )
 
                 if interpolated_time:
-                    logger.info("Interpolation successful. Prebaking AI PNG...")
-                    # 2. Prebake AI Frame
-                    ai_png_bytes, ai_bounds = VisualizationService.prebake_png(
-                        str(local_ai), ANIMATION_CHANNEL
+                    logger.info(
+                        "Interpolation successful. Uploading Prebaked AI PNG..."
                     )
+                    # 2. Prebake AI Frame
                     ai_png_filename = ai_filename.replace(".nc", ".png")
                     ai_png_remote = (
                         f"hf://buckets/{HF_BUCKET_ID}/animation_pngs/{ai_png_filename}"
@@ -217,10 +216,8 @@ class AnimationScheduler:
             logger.error(f"CPU Processing failed: {e}")
             raise
 
-    def _run_interpolation_logic(
-        self, local_a_str: str, local_b_str: str, local_out_str: str
-    ):
-        """Extracts matrices and runs the AI model. Returns the interpolated timestamp."""
+    def _run_interpolation_logic(self, local_a_str: str, local_b_str: str):
+        """Extracts matrices and runs the AI model. Returns the interpolated timestamp, png bytes, and bounds."""
         parser_a = None
         parser_b = None
 
@@ -244,19 +241,21 @@ class AnimationScheduler:
             ai_model = SatelliteInterpolationModel(force_cpu=True)
             interpolated_img = ai_model.predict_full_disk(img_a, img_b)
 
-            ai_model.save_to_nc(
-                interpolated_img,
-                parser_a.scene,
-                local_out_str,
-                ANIMATION_CHANNEL,
-                interpolated_time=interpolated_time,
+            # Inject the AI array back into the original Scene to inherit perfectly accurate Geostationary projections!
+            from dask import array as da
+
+            parser_a.scene[ANIMATION_CHANNEL].data = da.from_array(interpolated_img)
+
+            # Generate the perfectly reprojected AI PNG entirely in memory using the Raw area projection
+            ai_png_bytes, ai_bounds = VisualizationService.render_scene_to_png(
+                parser_a.scene, ANIMATION_CHANNEL
             )
 
-            return interpolated_time
+            return interpolated_time, ai_png_bytes, ai_bounds
 
         except Exception as e:
             logger.error(f"Interpolation AI failed: {e}")
-            return None
+            return None, None, None
         finally:
             if parser_a:
                 parser_a.close()
