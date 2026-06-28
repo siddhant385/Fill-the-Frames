@@ -252,77 +252,12 @@ class VisualizationService:
             parser.load_dataset(file_path)
             VisualizationService.validate_variable(parser, variable)
 
-            # ROUTE 1: Geostationary to Geographic Reprojection for accurate Leaflet overlay
-            if (
-                getattr(parser, "is_ai_file", False) is False
-                and getattr(parser, "scene", None) is not None
-            ):
-                try:
-                    area = getattr(
-                        parser.scene[variable],
-                        "area",
-                        parser.scene[variable].attrs.get("area"),
-                    )
-                    if area:
-                        # Downsample lonlats strictly for bounding box computation to save memory
-                        lons_sub, lats_sub = area.get_lonlats()
-                        lons_sub, lats_sub = lons_sub[::20, ::20], lats_sub[::20, ::20]
-                        valid_mask = (
-                            ~np.isnan(lats_sub)
-                            & ~np.isnan(lons_sub)
-                            & ~np.isinf(lats_sub)
-                            & ~np.isinf(lons_sub)
-                        )
-                        south, north = (
-                            float(np.min(lats_sub[valid_mask])),
-                            float(np.max(lats_sub[valid_mask])),
-                        )
-                        west, east = (
-                            float(np.min(lons_sub[valid_mask])),
-                            float(np.max(lons_sub[valid_mask])),
-                        )
-
-                        from pyresample.geometry import create_area_def
-
-                        # Dynamic native resolution mapping (prevent 1000x1000 hardcoded pixelation)
-                        height, width = (
-                            area.shape if hasattr(area, "shape") else (1000, 1000)
-                        )
-
-                        # Cap max resolution to prevent browser crash, but keep it high-def
-                        max_dim = 2500
-                        if width > max_dim or height > max_dim:
-                            scale = max_dim / max(width, height)
-                            width, height = int(width * scale), int(height * scale)
-
-                        area_extent = (west, south, east, north)
-                        target_area = create_area_def(
-                            area_id="leaflet_grid",
-                            projection="EPSG:4326",
-                            width=width,
-                            height=height,
-                            area_extent=area_extent,
-                        )
-
-                        logger.info(
-                            f"Reprojecting to EPSG:4326 ({width}x{height}) via Bilinear interpolation..."
-                        )
-                        resampled_scene = parser.scene.resample(
-                            target_area, resampler="bilinear"
-                        )
-                        frame = resampled_scene[variable].values.astype(np.float32)
-                    else:
-                        frame = parser.extract_time_slice(variable, 0).astype(
-                            np.float32
-                        )
-                except Exception as e:
-                    logger.warning(
-                        f"Reprojection failed, falling back to raw array: {str(e)}"
-                    )
-                    frame = parser.extract_time_slice(variable, 0).astype(np.float32)
-            else:
-                # Extract 2D array matrix directly for AI files or if scene doesn't exist
-                frame = parser.extract_time_slice(variable, 0).astype(np.float32)
+            # BYPASS REPROJECTION: Extract 2D array matrix directly for ALL files
+            # This ensures Raw and AI frames perfectly align as identical globes
+            # and saves massive amounts of CPU/RAM by skipping PyResample.
+            frame = parser.extract_time_slice(variable, 0).astype(np.float32)
+            if frame.ndim == 3:
+                frame = frame[0]
 
             # Dynamic Variable Normalization
             if (
@@ -432,64 +367,10 @@ class VisualizationService:
         ai_path = VisualizationService._get_file_path(ai_file_id)
 
         def get_frame_matrix(parser, is_actual: bool):
-            if (
-                getattr(parser, "is_ai_file", False) is False
-                and getattr(parser, "scene", None) is not None
-            ):
-                try:
-                    area = getattr(
-                        parser.scene[variable],
-                        "area",
-                        parser.scene[variable].attrs.get("area"),
-                    )
-                    if area:
-                        # Downsample lonlats strictly for memory safety
-                        lons_sub, lats_sub = area.get_lonlats()
-                        lons_sub, lats_sub = lons_sub[::20, ::20], lats_sub[::20, ::20]
-                        valid_mask = (
-                            ~np.isnan(lats_sub)
-                            & ~np.isnan(lons_sub)
-                            & ~np.isinf(lats_sub)
-                            & ~np.isinf(lons_sub)
-                        )
-                        south, north = (
-                            float(np.min(lats_sub[valid_mask])),
-                            float(np.max(lats_sub[valid_mask])),
-                        )
-                        west, east = (
-                            float(np.min(lons_sub[valid_mask])),
-                            float(np.max(lons_sub[valid_mask])),
-                        )
-
-                        from pyresample.geometry import create_area_def
-
-                        height, width = (
-                            area.shape if hasattr(area, "shape") else (1000, 1000)
-                        )
-                        max_dim = 1500  # Smaller max_dim for error map to ensure fast comparisons
-                        if width > max_dim or height > max_dim:
-                            scale = max_dim / max(width, height)
-                            width, height = int(width * scale), int(height * scale)
-
-                        area_extent = (west, south, east, north)
-                        target_area = create_area_def(
-                            area_id="leaflet_grid",
-                            projection="EPSG:4326",
-                            width=width,
-                            height=height,
-                            area_extent=area_extent,
-                        )
-
-                        logger.info(
-                            "Reprojecting Geostationary data for Error Map overlay via Bilinear..."
-                        )
-                        resampled_scene = parser.scene.resample(
-                            target_area, resampler="bilinear"
-                        )
-                        return resampled_scene[variable].values.astype(np.float32)
-                except Exception as e:
-                    logger.warning(f"Error map reprojection failed: {str(e)}")
-            return parser.extract_time_slice(variable, 0).astype(np.float32)
+            frame = parser.extract_time_slice(variable, 0).astype(np.float32)
+            if frame.ndim == 3:
+                frame = frame[0]
+            return frame
 
         parser_actual = None
         parser_ai = None
