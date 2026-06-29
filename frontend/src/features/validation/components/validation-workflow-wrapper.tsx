@@ -233,21 +233,12 @@ export function ValidationWorkflowWrapper() {
       component: (
         <div className="space-y-6">
            <MetricsDashboard />
-           <div className="flex justify-center pt-4 gap-4">
-            {/* BUG-006: wired to navigate + store reset */}
-            <Button variant="outline" onClick={handleFinishSession}>
-              Finish Session
-            </Button>
-            <Button 
-              onClick={() => {
-                const targetId = store.artifactId || store.validationPair?.generatedId;
-                if (!targetId) return;
-                const downloadUrl = exportClient.getDownloadUrl(targetId);
-                window.open(downloadUrl, "_blank");
-              }}
-              disabled={!store.artifactId && !store.validationPair}
-            >
-              Export Generated Frame (.nc)
+           <div className="flex justify-center gap-4 pt-4">
+            <Button variant="outline" onClick={() => {
+                store.reset();
+                window.location.reload();
+            }}>
+              Start New Validation
             </Button>
           </div>
         </div>

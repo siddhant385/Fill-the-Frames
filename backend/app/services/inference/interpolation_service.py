@@ -104,6 +104,22 @@ class InterpolationService:
                 interpolated_time=interpolated_time,
             )
 
+            # --- CRITICAL FIX FOR MANUAL INTERPOLATION ---
+            # Generate the perfectly reprojected PNG while we still have parser1.scene
+            # This ensures the Manual AI frame has the exact same geographic stretch as the raw files
+            from dask import array as da
+
+            parser1.scene[channel].data = da.from_array(interpolated_img)
+            png_bytes, bounds = VisualizationService.render_scene_to_png(
+                parser1.scene, channel
+            )
+
+            # Cache it so VisualizationService instantly serves it fully reprojected!
+            png_cache_path = local_result_dir / f"{channel}_map.png"
+            with open(png_cache_path, "wb") as f:
+                f.write(png_bytes)
+            # ---------------------------------------------
+
             # 🚨 4.5 NEW: Upload the generated file to Hugging Face Buckets!
             logger.info(
                 f"[Job {job_id}] Pushing generated NetCDF to Hugging Face Cloud..."

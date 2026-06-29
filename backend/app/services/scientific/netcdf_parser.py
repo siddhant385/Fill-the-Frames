@@ -19,16 +19,18 @@ class NetCDFParser(BaseDatasetParser):
     def load_dataset(self, file_path: str):
         filename = Path(file_path).name
         logger.info(f"Loading NetCDF: {filename}")
-        
+
         try:
-            if "Interpolated_AI" in filename:
+            if "Interpolated_AI" in filename or filename.startswith("AI_"):
                 self.is_ai_file = True
                 # AI files are CF-standard. Since SatPy lacks a CF reader, we use xarray.
                 self.ds = xr.open_dataset(file_path)
             else:
                 self.is_ai_file = False
                 self.scene = Scene(filenames=[file_path], reader="abi_l1b")
-                available_vars = [var["name"] for var in self.scene.available_dataset_ids()]
+                available_vars = [
+                    var["name"] for var in self.scene.available_dataset_ids()
+                ]
                 if available_vars:
                     self.scene.load(available_vars)
         except Exception as e:
@@ -45,7 +47,11 @@ class NetCDFParser(BaseDatasetParser):
             if variable not in self.ds:
                 raise ValueError(f"Variable {variable} not found in AI dataset")
             # Return pure numpy array from xarray dataset
-            return self.ds[variable].values.astype(np.float32)
+            data = self.ds[variable].values.astype(np.float32)
+            # SatPy CF writer sometimes adds a time dimension (e.g. shape (1, 2816, 2805))
+            if data.ndim == 3:
+                return data[0]
+            return data
         return super().extract_time_slice(variable, time_index)
 
     def extract_metadata(self) -> dict:
@@ -53,15 +59,17 @@ class NetCDFParser(BaseDatasetParser):
         if self.is_ai_file:
             variables = []
             for var_name, var_data in self.ds.data_vars.items():
-                variables.append(VariableInfo(
-                    name=str(var_name),
-                    datatype=str(var_data.dtype),
-                    dimensions=list(var_data.dims),
-                    shape=list(var_data.shape),
-                    attributes={},
-                    min_value=None,
-                    max_value=None
-                ))
+                variables.append(
+                    VariableInfo(
+                        name=str(var_name),
+                        datatype=str(var_data.dtype),
+                        dimensions=list(var_data.dims),
+                        shape=list(var_data.shape),
+                        attributes={},
+                        min_value=None,
+                        max_value=None,
+                    )
+                )
             return {
                 "global_attributes": dict(self.ds.attrs),
                 "dimensions": [],
@@ -70,7 +78,7 @@ class NetCDFParser(BaseDatasetParser):
                 "temporal_info": None,
                 "variable_count": len(variables),
                 "dimension_count": len(self.ds.dims),
-                "coordinate_count": 0
+                "coordinate_count": 0,
             }
         return super().extract_metadata()
 
