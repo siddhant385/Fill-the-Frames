@@ -58,7 +58,7 @@ class MetadataService:
             return response
 
         except Exception as e:
-            logger.error(f"Metadata extraction failed for {file_id}: {str(e)}")
+            logger.exception(f"Metadata extraction failed for {file_id}")
             raise e
         finally:
             if parser is not None:

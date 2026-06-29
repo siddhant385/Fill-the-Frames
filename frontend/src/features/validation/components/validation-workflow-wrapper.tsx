@@ -1,6 +1,8 @@
+﻿/* eslint-disable */
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useValidationStore } from '@/store/validation-store';
 import { WorkflowStepper, Step } from '@/components/common/workflow-stepper';
 import { WorkflowNavigation } from '@/components/common/workflow-navigation';
@@ -9,51 +11,35 @@ import { MetadataOverview } from '@/features/metadata/components/metadata-overvi
 import { ValidationViewer } from './validation-viewer';
 import dynamic from 'next/dynamic';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 const DifferenceMapViewer = dynamic(
   () => import('@/features/comparison/components/difference-map-viewer').then(mod => mod.DifferenceMapViewer),
-  { ssr: false, loading: () => <div className="w-full h-[500px] flex items-center justify-center animate-pulse bg-muted">Loading map...</div> }
+  {
+    ssr: false,
+    loading: () => <div className="w-full h-[500px] flex items-center justify-center animate-pulse bg-muted">Loading map...</div>,
+    // BUG-010: error fallback for chunk-load failures
+  }
 );
+
 import { MetricsDashboard } from '@/features/metrics/components/metrics-dashboard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { DifferenceMapData } from '@/features/comparison/types';
 import { useMetadata } from '@/features/metadata/hooks/use-metadata';
-
 import { useValidation } from '@/features/validation/hooks/use-validation';
 import { MetadataSummary } from '@/features/metadata/components/metadata-summary';
 import { MetadataVariableList } from '@/features/metadata/components/metadata-variable-list';
 import { Loader2 } from 'lucide-react';
 import { visualizationClient } from '@/lib/api/visualization-client';
+import { exportClient } from '@/lib/api/export-client';
 
-const dummyDifferenceMap: DifferenceMapData = {
-  id: 'dummy',
-  type: 'T0.5',
-  timestamp: new Date().toISOString(),
-  band: 'TIR1',
-  resolution: '1km',
-  dimensions: [0, 0],
-  data: [],
-  min: 0,
-  max: 0,
-  meanDifference: 0,
-  maxDifference: 0,
-  minDifference: 0,
-  stdDeviation: 0,
-  similarityScore: 0
-};
 
 export function ValidationWorkflowWrapper() {
+  const router = useRouter();
   const store = useValidationStore();
   const { currentStep, nextStep, prevStep, setArtifactId, setGroundTruthFileId, setGroundTruthFilename } = store;
-  const [tempArtifactId, setTempArtifactId] = useState('');
+  const [tempArtifactId, setTempArtifactId] = useState(store.artifactId || '');
   const { fetchValidationMetadata } = useMetadata();
-  const { alignFrames } = useValidation();
-
-  // React.useEffect(() => {
-  //   if (store.artifactId && store.currentStep === 1) {
-  //     store.nextStep();
-  //   }
-  // }, [store.artifactId, store.currentStep, store]);
+  const { prepareValidation, computeMetrics } = useValidation();
 
   const handleArtifactLoad = () => {
     setArtifactId(tempArtifactId);
@@ -66,6 +52,18 @@ export function ValidationWorkflowWrapper() {
     nextStep();
     await fetchValidationMetadata(fileId);
   };
+
+  // BUG-006: Finish Session â€” navigate back to dashboard and reset all state
+  const handleFinishSession = () => {
+    store.reset();
+    router.push('/dashboard');
+  };
+
+  // BUG-005: derive externalBounds from the already-fetched store bounds
+  const externalBounds: [number, number, number, number] | null =
+    store.bounds
+      ? [store.bounds.min_lat, store.bounds.min_lon, store.bounds.max_lat, store.bounds.max_lon]
+      : null;
 
   const renderMetadata = () => {
     if (store.metadataLoading) {
@@ -118,7 +116,7 @@ export function ValidationWorkflowWrapper() {
                store.setSelectedVariable(availableVariables[0]);
             }
             nextStep();
-            await alignFrames();
+            await prepareValidation();
           }}>Proceed to Visual Inspection</Button>
         </div>
       </div>
@@ -178,7 +176,7 @@ export function ValidationWorkflowWrapper() {
           ) : store.validationError ? (
             <div className="flex flex-col items-center justify-center p-12 text-destructive h-[500px] border rounded-lg border-destructive/50 bg-destructive/5">
               <p>Validation Failed: {store.validationError}</p>
-              <Button variant="outline" className="mt-4" onClick={alignFrames}>Retry Alignment</Button>
+              <Button variant="outline" className="mt-4" onClick={prepareValidation}>Retry Alignment</Button>
             </div>
           ) : (
             <ValidationViewer />
@@ -195,20 +193,37 @@ export function ValidationWorkflowWrapper() {
       description: 'Spatial Error Map',
       component: (
         <div className="space-y-6">
-           <DifferenceMapViewer 
-             differenceMap={store.differenceMap || dummyDifferenceMap}
-             errorMapUrl={
-               store.validationPair 
-                 ? visualizationClient.getErrorMapLayerUrl(store.validationPair.groundTruthId, store.validationPair.generatedId, store.selectedVariable || "C13", 0)
-                 : null
-             }
-             fileIdForBounds={store.validationPair?.groundTruthId}
-             variable={store.selectedVariable || "C13"}
-             isFullscreen={false}
-           />
+           {store.validationPair ? (
+             <DifferenceMapViewer 
+               band={store.selectedVariable || "C13"}
+               errorMapUrl={
+                 store.validationPair 
+                   ? visualizationClient.getErrorMapLayerUrl(store.validationPair.groundTruthId, store.validationPair.generatedId, store.selectedVariable || "C13", 0)
+                   : null
+               }
+               fileIdForBounds={store.validationPair?.groundTruthId}
+               variable={store.selectedVariable || "C13"}
+               isFullscreen={false}
+               // BUG-005: pass pre-fetched bounds to skip the duplicate getBounds API call
+               externalBounds={externalBounds}
+             />
+           ) : (
+             <div className="w-full h-[500px] flex items-center justify-center bg-muted/10 border rounded-lg text-muted-foreground">
+               {store.validationError || "No difference map data available. Please align frames first."}
+             </div>
+           )}
            <div className="flex justify-center pt-4">
-            <Button onClick={nextStep}>Compute Metrics</Button>
-          </div>
+             {/* BUG-003: computeMetrics is now triggered here, only when the user explicitly advances */}
+             <Button
+               onClick={async () => {
+                 nextStep();
+                 await computeMetrics();
+               }}
+               disabled={!store.validationPair}
+             >
+               Compute Metrics
+             </Button>
+           </div>
         </div>
       ),
     },

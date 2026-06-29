@@ -1,6 +1,5 @@
 import { ApiResponse } from "@/types/api";
-
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://sid385-fill-the-frames.hf.space/api/v1";
+import { BASE_URL } from "./base-client";
 
 export interface UploadResponse {
   fileId: string;
@@ -30,14 +29,14 @@ export const uploadClient = {
         if (xhr.status >= 200 && xhr.status < 300) {
           try {
             resolve(JSON.parse(xhr.responseText));
-          } catch (e) {
+          } catch {
             reject(new Error("Invalid JSON response"));
           }
         } else {
           try {
             const errRes = JSON.parse(xhr.responseText);
             reject(new Error(errRes.message || `Upload failed with status ${xhr.status}`));
-          } catch(e) {
+          } catch {
             reject(new Error(`Upload failed with status ${xhr.status}`));
           }
         }

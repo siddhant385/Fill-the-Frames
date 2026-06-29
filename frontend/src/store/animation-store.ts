@@ -21,6 +21,9 @@ interface AnimationStore {
   setSelectedVariable: (variable: string | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
+  cachedBounds: Record<string, [[number, number], [number, number]]>;
+  setCachedBounds: (fileId: string, bounds: [[number, number], [number, number]]) => void;
+  reset: () => void;
 }
 
 export const useAnimationStore = create<AnimationStore>((set, get) => ({
@@ -79,9 +82,21 @@ export const useAnimationStore = create<AnimationStore>((set, get) => ({
   setSpeed: (speed: number) => set({ playbackSpeed: speed }),
   
   setSelectedVariable: (variable: string | null) => set({ 
-    selectedVariable: variable,
-    currentFrameIndex: 0 // Reset index when variable changes
+    selectedVariable: variable
   }),
   setLoading: (loading: boolean) => set({ loading }),
   setError: (error: string | null) => set({ error }),
+  
+  cachedBounds: {},
+  setCachedBounds: (fileId, bounds) => set((state) => ({
+    cachedBounds: { ...state.cachedBounds, [fileId]: bounds }
+  })),
+  reset: () => set({
+    frames: [],
+    currentFrameIndex: 0,
+    playing: false,
+    selectedVariable: null,
+    loading: false,
+    error: null,
+  }),
 }));

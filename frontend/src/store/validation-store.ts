@@ -1,8 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { MetadataResponse } from '@/features/metadata/types';
-import { FrameDataResponse } from '@/features/visualization/types';
-import { DifferenceMapData } from '@/features/comparison/types';
+import { MapBoundsResponse } from '@/features/visualization/types';
 import { MetricsResponse } from '@/lib/api/validation-client';
 
 interface ValidationState {
@@ -19,9 +18,7 @@ interface ValidationState {
   metadataError: string | null;
 
   validationPair: { generatedId: string, groundTruthId: string } | null;
-  alignedGenerated: FrameDataResponse | null;
-  alignedGroundTruth: FrameDataResponse | null;
-  differenceMap: DifferenceMapData | null;
+  bounds: MapBoundsResponse | null;
 
   validationLoading: boolean;
   validationError: string | null;
@@ -38,9 +35,10 @@ interface ValidationState {
   setGroundTruthFilename: (filename: string | null) => void;
   setMetricsComputed: (computed: boolean) => void;
   setMetadataState: (state: Partial<Pick<ValidationState, 'groundTruthMetadata' | 'metadataLoading' | 'metadataError'>>) => void;
-  setValidationState: (state: Partial<Pick<ValidationState, 'validationPair' | 'alignedGenerated' | 'alignedGroundTruth' | 'differenceMap' | 'validationLoading' | 'validationError'>>) => void;
+  setValidationState: (state: Partial<Pick<ValidationState, 'validationPair' | 'bounds' | 'validationLoading' | 'validationError'>>) => void;
   setMetricsState: (state: Partial<Pick<ValidationState, 'metrics' | 'metricsLoading' | 'metricsError'>>) => void;
   setSelectedVariable: (variable: string | null) => void;
+  initializeFromInterpolation: (artifactId: string) => void;
   reset: () => void;
 }
 
@@ -59,9 +57,7 @@ export const useValidationStore = create<ValidationState>()(
       metadataError: null,
 
       validationPair: null,
-      alignedGenerated: null,
-      alignedGroundTruth: null,
-      differenceMap: null,
+      bounds: null,
       validationLoading: false,
       validationError: null,
 
@@ -80,6 +76,27 @@ export const useValidationStore = create<ValidationState>()(
       setValidationState: (newState) => set((state) => ({ ...state, ...newState })),
       setMetricsState: (newState) => set((state) => ({ ...state, ...newState })),
       setSelectedVariable: (variable) => set({ selectedVariable: variable }),
+      initializeFromInterpolation: (artifactId: string) => {
+        // Reset everything first, then set the specific artifact ID
+        set({
+          currentStep: 1,
+          artifactId: artifactId,
+          groundTruthFileId: null,
+          groundTruthFilename: null,
+          selectedVariable: null,
+          metricsComputed: false,
+          groundTruthMetadata: null,
+          metadataLoading: false,
+          metadataError: null,
+          validationPair: null,
+          bounds: null,
+          validationLoading: false,
+          validationError: null,
+          metrics: null,
+          metricsLoading: false,
+          metricsError: null,
+        });
+      },
       reset: () => set({
         currentStep: 1,
         artifactId: null,
@@ -91,9 +108,7 @@ export const useValidationStore = create<ValidationState>()(
         metadataLoading: false,
         metadataError: null,
         validationPair: null,
-        alignedGenerated: null,
-        alignedGroundTruth: null,
-        differenceMap: null,
+        bounds: null,
         validationLoading: false,
         validationError: null,
         metrics: null,
@@ -112,6 +127,7 @@ export const useValidationStore = create<ValidationState>()(
         metricsComputed: state.metricsComputed,
         groundTruthMetadata: state.groundTruthMetadata,
         validationPair: state.validationPair,
+        bounds: state.bounds,
         metrics: state.metrics,
       })
     }

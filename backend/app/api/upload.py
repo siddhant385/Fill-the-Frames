@@ -4,6 +4,7 @@ from typing import List
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from huggingface_hub import HfFileSystem
+from loguru import logger
 
 from app.core.config import HF_BUCKET_ID, HF_TOKEN
 from app.schemas.common import ApiResponse
@@ -32,6 +33,7 @@ async def upload_file(file: UploadFile = File(...)):
     except HTTPException as he:
         raise he
     except Exception as e:
+        logger.exception("Upload failed")
         return ApiResponse(success=False, message=f"Upload failed: {str(e)}", data=None)
 
 
@@ -52,6 +54,7 @@ async def upload_multiple_files(files: List[UploadFile] = File(...)):
     except HTTPException as he:
         raise he
     except Exception as e:
+        logger.exception("Batch upload failed")
         return ApiResponse(
             success=False, message=f"Batch upload failed: {str(e)}", data=None
         )
@@ -94,6 +97,7 @@ async def list_uploaded_files():
             data=files_info,
         )
     except Exception as e:
+        logger.exception("Failed to list files")
         return ApiResponse(
             success=False, message=f"Failed to list files: {str(e)}", data=[]
         )
@@ -121,4 +125,5 @@ async def delete_file(file_id: str):
             data=None,
         )
     except Exception as e:
+        logger.exception(f"Could not delete file {file_id}")
         raise HTTPException(status_code=500, detail=f"Could not delete file: {str(e)}")

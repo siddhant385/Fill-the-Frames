@@ -1,12 +1,10 @@
 import { useRef, useEffect } from 'react';
 import { useInterpolationStore } from '@/store/interpolation-store';
-import { useValidationStore } from '@/store/validation-store';
 import { interpolationClient } from '@/lib/api/interpolation-client';
 import { BASE_URL } from '@/lib/api/base-client';
 
 export function useInterpolation() {
   const store = useInterpolationStore();
-  const validationStore = useValidationStore();
   const eventSourceRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
@@ -67,10 +65,6 @@ export function useInterpolation() {
               outputFileId: data.result_file_id,
               completedAt: new Date().toISOString()
             });
-            // Propagate to validation store
-            if (data.result_file_id) {
-              validationStore.setArtifactId(data.result_file_id);
-            }
           }
           eventSource.close();
         }

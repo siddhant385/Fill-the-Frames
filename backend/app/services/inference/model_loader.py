@@ -22,6 +22,7 @@ class ModelLoader:
         else:
             logger.info("CUDA not available. GPU sessions will fall back to CPU.")
         return has_cuda
+    _model_name = None
 
     @classmethod
     def load_model(cls, model_path: str = DEFAULT_MODEL_PATH):
@@ -29,6 +30,8 @@ class ModelLoader:
         if cls._cpu_session is not None:
             logger.info("AI Model is already loaded in memory.")
             return cls._cpu_session
+
+        cls._model_name = os.path.basename(model_path)
 
         if not os.path.exists(model_path):
             logger.error(f"ONNX Model file not found at: {model_path}")
@@ -105,6 +108,11 @@ class ModelLoader:
         if cls._gpu_session is not None:
             return cls._gpu_session
         return cls._cpu_session
+
+
+    @classmethod
+    def get_model_name(cls):
+        return cls._model_name
 
     @classmethod
     def unload_model(cls):

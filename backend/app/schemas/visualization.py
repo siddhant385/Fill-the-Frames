@@ -35,10 +35,30 @@ class VariablesResponse(BaseModel):
 
 class MapBoundsResponse(BaseModel):
     bounds: List[List[float]] = Field(..., description="Geographical bounds for Leaflet map overlay [[South, West], [North, East]]")
+    # Flat convenience fields so frontend can do res.data.min_lat directly
+    min_lat: float = Field(..., description="Southern boundary (latitude)")
+    min_lon: float = Field(..., description="Western boundary (longitude)")
+    max_lat: float = Field(..., description="Northern boundary (latitude)")
+    max_lon: float = Field(..., description="Eastern boundary (longitude)")
 
     class Config:
         json_schema_extra = {
             "example": {
-                "bounds": [[8.0, 68.0], [37.0, 97.0]]
+                "bounds": [[8.0, 68.0], [37.0, 97.0]],
+                "min_lat": 8.0,
+                "min_lon": 68.0,
+                "max_lat": 37.0,
+                "max_lon": 97.0,
             }
         }
+
+class FrameDataResponse(BaseModel):
+    file_id: str
+    variable: str
+    time_index: int
+    shape: List[int]
+    min: float
+    max: float
+    mean: float
+    std: float
+    z: List[List[float]]

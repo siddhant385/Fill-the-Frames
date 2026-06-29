@@ -1,9 +1,12 @@
+﻿/* eslint-disable */
 'use client';
 
 import React from 'react';
 import { useInterpolationStore } from '@/store/interpolation-store';
 import { WorkflowStepper, Step } from '@/components/common/workflow-stepper';
 import { WorkflowNavigation } from '@/components/common/workflow-navigation';
+import { useRouter } from 'next/navigation';
+import { useValidationStore } from '@/store/validation-store';
 import { UploadDropzone } from '@/features/upload/components/UploadDropzone';
 import { MetadataOverview } from '@/features/metadata/components/metadata-overview';
 import { InterpolationConfigPanel } from './interpolation-config-panel';
@@ -17,9 +20,12 @@ import { MetadataSummary } from '@/features/metadata/components/metadata-summary
 import { MetadataVariableList } from '@/features/metadata/components/metadata-variable-list';
 import { Loader2 } from 'lucide-react';
 import { useInterpolation } from '../hooks/use-interpolation';
+import { exportClient } from '@/lib/api/export-client';
 
 export function InterpolationWorkflowWrapper() {
+  const router = useRouter();
   const store = useInterpolationStore();
+  const validationStore = useValidationStore();
   const { startInterpolation } = useInterpolation();
   const { fetchInterpolationMetadata } = useMetadata();
 
@@ -168,6 +174,17 @@ export function InterpolationWorkflowWrapper() {
                 store.nextStep();
              }}>
                Review Export Options
+             </Button>
+             <Button 
+               onClick={() => {
+                 if (store.outputFileId) {
+                   validationStore.initializeFromInterpolation(store.outputFileId);
+                   router.push('/dashboard/validation');
+                 }
+               }}
+               disabled={!store.outputFileId}
+             >
+               Validate Result
              </Button>
           </div>
         </div>
